@@ -88,23 +88,34 @@ async function uploadFile(fileInputId) {
   const input = document.getElementById(fileInputId);
   if (!input || !input.files || input.files.length === 0) return null;
 
+  const file = input.files[0];
+  let base64Url = null;
+  try {
+    base64Url = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  } catch(e) {}
+
   const formData = new FormData();
-  formData.append('file', input.files[0]);
+  formData.append('file', file);
 
   const token = getAdminToken();
-  const res = await fetch('/api/admin/upload', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` },
-    body: formData
-  });
+  try {
+    const res = await fetch(API_BASE_URL + '/api/admin/upload', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+    const json = await res.json();
+    if (json.success && json.fileUrl) {
+      return json.fileUrl;
+    }
+  } catch(e) {}
 
-  const json = await res.json();
-  if (json.success && json.fileUrl) {
-    return json.fileUrl;
-  } else {
-    alert(json.message || 'File upload failed');
-    return null;
-  }
+  return base64Url;
 }
 
 // 3. STREAMS CRUD

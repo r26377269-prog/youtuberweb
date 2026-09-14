@@ -130,8 +130,8 @@
   "admin_users": [
     {
       "id": "admin-1",
-      "email": "admin@youtuber.com",
-      "password_hash": "$2a$10$jU0gyy.p.y3j9Gu38nbi1etVFr/4d8cUcho.IbPBVrrNNhy5QrduG",
+      "email": "admin",
+      "password_hash": "$2a$10$FkBjG4bpxWUcy6h0LLpFtuwn7JfERv2v4yj/Y8jhoxvPb06sz6ZWq",
       "created_at": "2026-09-13T15:06:08.853Z"
     }
   ]

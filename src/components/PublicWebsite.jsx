@@ -78,17 +78,55 @@ export default function PublicWebsite() {
   // 2. Fetch Public Data
   useEffect(() => {
     const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? 'https://youtuberweb.onrender.com' : '';
+    
+    // Load local storage cache first for instant display & offline Netlify support
+    const cached = localStorage.getItem('youtuber_site_data');
+    let hasLocalEdits = false;
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed) {
+          setData(parsed);
+          hasLocalEdits = true;
+          if (parsed.subscribers && parsed.subscribers.count !== undefined) {
+            setDisplayCount(Number(parsed.subscribers.count));
+          }
+        }
+      } catch (e) {}
+    }
+
     fetch(`${API_BASE_URL}/api/public/data`)
       .then(res => res.json())
       .then(json => {
         if (json.success && json.data) {
+          if (hasLocalEdits && cached) {
+            try {
+              const localData = JSON.parse(cached);
+              const mergedData = {
+                settings: localData.settings || json.data.settings,
+                streams: (localData.streams && localData.streams.length > 0) ? localData.streams : json.data.streams,
+                videos: (localData.videos && localData.videos.length > 0) ? localData.videos : json.data.videos,
+                subscribers: localData.subscribers || json.data.subscribers,
+                support: localData.support || json.data.support,
+                socials: (localData.socials && localData.socials.length > 0) ? localData.socials : json.data.socials
+              };
+              setData(mergedData);
+              localStorage.setItem('youtuber_site_data', JSON.stringify(mergedData));
+              if (mergedData.subscribers && mergedData.subscribers.count !== undefined) {
+                setDisplayCount(Number(mergedData.subscribers.count));
+              }
+              return;
+            } catch (e) {}
+          }
+
           setData(json.data);
-          if (json.data.subscribers && json.data.subscribers.count) {
-            setDisplayCount(json.data.subscribers.count);
+          localStorage.setItem('youtuber_site_data', JSON.stringify(json.data));
+          if (json.data.subscribers && json.data.subscribers.count !== undefined) {
+            setDisplayCount(Number(json.data.subscribers.count));
           }
         }
       })
-      .catch(err => console.error('Error fetching public data:', err));
+      .catch(err => console.warn('Public API offline, using cached local data:', err));
   }, []);
 
   // 3. Typing Subtitle Loop Effect
