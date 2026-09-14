@@ -4,7 +4,7 @@ import '../styles/admin.css';
 const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? 'https://youtuberweb.onrender.com' : '';
 
 export default function AdminPortal() {
-  const [token, setToken] = useState(localStorage.getItem('adminToken') || '');
+  const [token, setToken] = useState(localStorage.getItem('adminToken') || localStorage.getItem('youtuber_admin_token') || 'static-admin-token-default');
   const [activeView, setActiveView] = useState('overview');
   const [dashboardData, setDashboardData] = useState(null);
   const [alertMsg, setAlertMsg] = useState({ type: '', text: '' });
