@@ -3,7 +3,7 @@
     "id": 1,
     "website_title": "SavouR GaminG",
     "creator_name": "SavouR GaminG",
-    "profile_image": "/uploads/upload-1789378737077-363215173.jpg",
+    "profile_image": "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80",
     "logo_url": "",
     "hero_welcome_text": "WELCOME TO THE SavouR GaminG",
     "hero_typing_texts": [
@@ -22,7 +22,7 @@
       "id": "stream-1789314350394",
       "title": "minecraft best new smp Losthave! live! join now!",
       "description": "minecraft best new smp Losthave! live! join now!",
-      "thumbnail_url": "/uploads/upload-1789378658226-247789479.jpg",
+      "thumbnail_url": "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80",
       "scheduled_date": "2026-09-14",
       "scheduled_time": "05:05",
       "youtube_url": "https://www.youtube.com/live/Y_NMITw1-gQ?si=O-GJTg7OFAmtJXih",
@@ -88,7 +88,7 @@
     "id": 1,
     "upi_id": "fam_6ed9893641acd2ccea33e06b93ebab3d6c7871ef@fam",
     "creator_name": "SavouR GaminG",
-    "qr_code_url": "/uploads/upload-1789378413739-723877338.png",
+    "qr_code_url": "",
     "default_amount": 149,
     "support_message": "Support the stream directly to enable bigger production values and gear upgrades!",
     "updated_at": "2026-09-14T09:38:30.011Z"

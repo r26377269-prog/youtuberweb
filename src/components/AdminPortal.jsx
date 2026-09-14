@@ -188,25 +188,24 @@ export default function AdminPortal() {
   // Upload helper
   const handleFileUpload = async (file) => {
     if (!file) return null;
+    let base64Url = null;
+    try {
+      base64Url = await readFileAsDataUrl(file);
+    } catch(e) {}
+
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/upload`, {
+      await fetch(`${API_BASE_URL}/api/admin/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
-      const json = await res.json();
-      if (json.success && json.fileUrl) {
-        const finalUrl = (json.fileUrl.startsWith('/') && API_BASE_URL) ? `${API_BASE_URL}${json.fileUrl}` : json.fileUrl;
-        return finalUrl;
-      }
     } catch (err) {
-      console.error('Upload failed:', err);
-      alert('File upload failed. Please try again.');
+      console.error('Upload failed warning:', err);
     }
-    return null;
+    return base64Url;
   };
 
   const updateStoreLocal = (sectionKey, updateFn) => {
@@ -782,9 +781,6 @@ export default function AdminPortal() {
                       const file = e.target.files[0];
                       const dataUrl = await readFileAsDataUrl(file);
                       if (dataUrl) setSupportForm(prev => ({ ...prev, qr_code_url: dataUrl }));
-                      handleFileUpload(file).then(fileUrl => {
-                        if (fileUrl) setSupportForm(prev => ({ ...prev, qr_code_url: fileUrl }));
-                      }).catch(() => { });
                     }
                   }} />
                   {supportForm.qr_code_url && (
@@ -864,9 +860,6 @@ export default function AdminPortal() {
                       const file = e.target.files[0];
                       const dataUrl = await readFileAsDataUrl(file);
                       if (dataUrl) setSettingsForm(prev => ({ ...prev, profile_image: dataUrl }));
-                      handleFileUpload(file).then(fileUrl => {
-                        if (fileUrl) setSettingsForm(prev => ({ ...prev, profile_image: fileUrl }));
-                      }).catch(() => { });
                     }
                   }} />
                   {settingsForm.profile_image && (
@@ -954,9 +947,6 @@ export default function AdminPortal() {
                     const file = e.target.files[0];
                     const dataUrl = await readFileAsDataUrl(file);
                     if (dataUrl) setStreamForm(prev => ({ ...prev, thumbnail_url: dataUrl }));
-                    handleFileUpload(file).then(fileUrl => {
-                      if (fileUrl) setStreamForm(prev => ({ ...prev, thumbnail_url: fileUrl }));
-                    }).catch(() => { });
                   }
                 }} />
                 {streamForm.thumbnail_url && (
@@ -1005,9 +995,6 @@ export default function AdminPortal() {
                     const file = e.target.files[0];
                     const dataUrl = await readFileAsDataUrl(file);
                     if (dataUrl) setVideoForm(prev => ({ ...prev, thumbnail_url: dataUrl }));
-                    handleFileUpload(file).then(fileUrl => {
-                      if (fileUrl) setVideoForm(prev => ({ ...prev, thumbnail_url: fileUrl }));
-                    }).catch(() => { });
                   }
                 }} />
                 {videoForm.thumbnail_url && (

@@ -6,6 +6,18 @@ let currentDashboardData = null;
 let currentEditStreamId = null;
 let currentEditVideoId = null;
 
+function getValidImgSrc(url, fallback) {
+  if (!url || typeof url !== 'string' || !url.trim()) return fallback || '';
+  const clean = url.trim();
+  if (clean.startsWith('data:') || clean.startsWith('http://') || clean.startsWith('https://')) {
+    return clean;
+  }
+  if (clean.startsWith('/uploads/')) {
+    return API_BASE_URL + clean;
+  }
+  return clean || fallback || '';
+}
+
 // Route Guard & Load Data
 document.addEventListener('DOMContentLoaded', async () => {
   const isAuth = await verifyAdminAuth();
@@ -14,12 +26,72 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  // Setup live file upload change listeners
+  const profileFileInput = document.getElementById('setting-profile-file');
+  if (profileFileInput) {
+    profileFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target.result;
+          const previewInput = document.getElementById('setting-profile-preview');
+          const previewBox = document.getElementById('setting-profile-preview-box');
+          const imgTag = document.getElementById('setting-profile-img-tag');
+          if (previewInput) previewInput.value = dataUrl;
+          if (imgTag) imgTag.src = dataUrl;
+          if (previewBox) previewBox.style.display = 'flex';
+        };
+        reader.readAsDataURL(e.target.files[0]);
+      }
+    });
+  }
+
+  const qrFileInput = document.getElementById('upi-qr-file');
+  if (qrFileInput) {
+    qrFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target.result;
+          const previewInput = document.getElementById('upi-qr-preview');
+          const previewBox = document.getElementById('upi-qr-preview-box');
+          const imgTag = document.getElementById('upi-qr-img-tag');
+          if (previewInput) previewInput.value = dataUrl;
+          if (imgTag) imgTag.src = dataUrl;
+          if (previewBox) previewBox.style.display = 'flex';
+        };
+        reader.readAsDataURL(e.target.files[0]);
+      }
+    });
+  }
+
   loadDashboardData();
   setupNavigation();
 });
 
 // Fetch all dashboard data from Admin API
 async function loadDashboardData() {
+  let activeData = null;
+  let hasLocalEdits = false;
+  const cached = localStorage.getItem('youtuber_site_data');
+  if (cached) {
+    try {
+      activeData = JSON.parse(cached);
+      if (activeData) hasLocalEdits = true;
+    } catch (e) {}
+  }
+
+  if (activeData) {
+    currentDashboardData = activeData;
+    renderOverviewStats();
+    renderStreamsTable();
+    renderVideosTable();
+    renderSubscribersTable();
+    populateSupportForm();
+    renderSocialsTable();
+    populateSettingsForm();
+  }
+
   const token = getAdminToken();
   try {
     const res = await fetch(API_BASE_URL + '/api/admin/dashboard-data', {
@@ -28,7 +100,19 @@ async function loadDashboardData() {
     const json = await res.json();
 
     if (json.success && json.data) {
-      currentDashboardData = json.data;
+      if (hasLocalEdits && activeData) {
+        currentDashboardData = {
+          settings: activeData.settings || json.data.settings,
+          streams: (activeData.streams && activeData.streams.length > 0) ? activeData.streams : json.data.streams,
+          videos: (activeData.videos && activeData.videos.length > 0) ? activeData.videos : json.data.videos,
+          subscribers: activeData.subscribers || json.data.subscribers,
+          support: activeData.support || json.data.support,
+          socials: (activeData.socials && activeData.socials.length > 0) ? activeData.socials : json.data.socials
+        };
+      } else {
+        currentDashboardData = json.data;
+      }
+      localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
       renderOverviewStats();
       renderStreamsTable();
       renderVideosTable();
@@ -38,7 +122,7 @@ async function loadDashboardData() {
       populateSettingsForm();
     }
   } catch (err) {
-    console.error('Error loading dashboard data:', err);
+    console.warn('Error loading dashboard data:', err);
   }
 }
 
@@ -104,15 +188,11 @@ async function uploadFile(fileInputId) {
 
   const token = getAdminToken();
   try {
-    const res = await fetch(API_BASE_URL + '/api/admin/upload', {
+    await fetch(API_BASE_URL + '/api/admin/upload', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: formData
     });
-    const json = await res.json();
-    if (json.success && json.fileUrl) {
-      return json.fileUrl;
-    }
   } catch(e) {}
 
   return base64Url;
@@ -481,6 +561,13 @@ function populateSupportForm() {
   document.getElementById('upi-amount-input').value = sup.default_amount || 100;
   document.getElementById('upi-message-input').value = sup.support_message || '';
   document.getElementById('upi-qr-preview').value = sup.qr_code_url || '';
+
+  const qrBox = document.getElementById('upi-qr-preview-box');
+  const qrImg = document.getElementById('upi-qr-img-tag');
+  if (sup.qr_code_url && qrBox && qrImg) {
+    qrImg.src = getValidImgSrc(sup.qr_code_url);
+    qrBox.style.display = 'flex';
+  }
 }
 
 async function saveSupportSettings(e) {
@@ -492,8 +579,11 @@ async function saveSupportSettings(e) {
   const support_message = document.getElementById('upi-message-input').value;
   let qr_code_url = document.getElementById('upi-qr-preview').value;
 
-  const uploaded = await uploadFile('upi-qr-file');
-  if (uploaded) qr_code_url = uploaded;
+  const fileInput = document.getElementById('upi-qr-file');
+  if (fileInput && fileInput.files && fileInput.files.length > 0) {
+    const uploaded = await uploadFile('upi-qr-file');
+    if (uploaded) qr_code_url = uploaded;
+  }
 
   const payload = { upi_id, creator_name, default_amount: Number(default_amount), support_message, qr_code_url };
 
@@ -515,7 +605,7 @@ async function saveSupportSettings(e) {
     console.warn('API support save warning:', err);
   }
   alert('Support / UPI settings updated successfully!');
-  loadDashboardData();
+  populateSupportForm();
 }
 
 // 7. SOCIAL LINKS TABLE
@@ -593,12 +683,26 @@ function populateSettingsForm() {
   if (!currentDashboardData || !currentDashboardData.settings) return;
   const st = currentDashboardData.settings;
 
-  document.getElementById('setting-title-input').value = st.website_title || '';
-  document.getElementById('setting-name-input').value = st.creator_name || '';
-  document.getElementById('setting-hero-welcome-input').value = st.hero_welcome_text || '';
-  document.getElementById('setting-typing-input').value = (st.hero_typing_texts || []).join(', ');
-  document.getElementById('setting-profile-preview').value = st.profile_image || '';
-  document.getElementById('setting-about-input').value = st.about_text || '';
+  const titleInp = document.getElementById('setting-title-input');
+  const nameInp = document.getElementById('setting-name-input');
+  const welcomeInp = document.getElementById('setting-hero-welcome-input');
+  const typingInp = document.getElementById('setting-typing-input');
+  const profileInp = document.getElementById('setting-profile-preview');
+  const aboutInp = document.getElementById('setting-about-input');
+
+  if (titleInp) titleInp.value = st.website_title || '';
+  if (nameInp) nameInp.value = st.creator_name || '';
+  if (welcomeInp) welcomeInp.value = st.hero_welcome_text || '';
+  if (typingInp) typingInp.value = Array.isArray(st.hero_typing_texts) ? st.hero_typing_texts.join(', ') : (st.hero_typing_texts || '');
+  if (profileInp) profileInp.value = st.profile_image || '';
+  if (aboutInp) aboutInp.value = st.about_text || '';
+
+  const prevBox = document.getElementById('setting-profile-preview-box');
+  const imgTag = document.getElementById('setting-profile-img-tag');
+  if (st.profile_image && prevBox && imgTag) {
+    imgTag.src = getValidImgSrc(st.profile_image);
+    prevBox.style.display = 'flex';
+  }
 }
 
 async function saveWebsiteSettings(e) {
@@ -613,8 +717,11 @@ async function saveWebsiteSettings(e) {
   const about_text = document.getElementById('setting-about-input').value;
   let profile_image = document.getElementById('setting-profile-preview').value;
 
-  const uploaded = await uploadFile('setting-profile-file');
-  if (uploaded) profile_image = uploaded;
+  const fileInput = document.getElementById('setting-profile-file');
+  if (fileInput && fileInput.files && fileInput.files.length > 0) {
+    const uploaded = await uploadFile('setting-profile-file');
+    if (uploaded) profile_image = uploaded;
+  }
 
   const payload = { website_title, creator_name, hero_welcome_text, hero_typing_texts, about_text, profile_image };
 
@@ -636,7 +743,7 @@ async function saveWebsiteSettings(e) {
     console.warn('API settings save warning:', err);
   }
   alert('Website settings updated successfully!');
-  loadDashboardData();
+  populateSettingsForm();
 }
 
 // 9. CHANGE PASSWORD

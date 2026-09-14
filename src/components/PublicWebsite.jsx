@@ -353,6 +353,17 @@ export default function PublicWebsite() {
   const mainStream = streams.length > 0 ? streams[0] : null;
   const sortedVideos = [...videos].sort((a, b) => (b.is_trending ? 1 : 0) - (a.is_trending ? 1 : 0));
 
+  const getValidImgSrc = (url, fallback) => {
+    if (!url) return fallback;
+    if (url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    if (url.startsWith('/uploads/')) {
+      return `https://youtuberweb.onrender.com${url}`;
+    }
+    return url || fallback;
+  };
+
   return (
     <div className="public-app-root" ref={compRef}>
       {/* GLOWING TOP SCROLL PROGRESS BAR */}
@@ -368,7 +379,11 @@ export default function PublicWebsite() {
         <nav className="nav-spotlight-bar">
           {/* BRAND PILL LEFT */}
           <a href="#home" className="nav-brand-pill">
-            <img src={settings.profile_image || "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=150&q=80"} alt="Profile" />
+            <img 
+              src={getValidImgSrc(settings.profile_image, "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=150&q=80")} 
+              onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=150&q=80"; }} 
+              alt="Profile" 
+            />
             <span className="brand-name-text">{settings.creator_name || "ALEX VANCE"}</span>
           </a>
 
@@ -464,7 +479,11 @@ export default function PublicWebsite() {
         <div className="hero-card-wrap">
           <div className="hero-spotlight-card">
             <div className="hero-avatar-frame">
-              <img src={settings.profile_image || "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80"} alt="Creator Avatar" />
+              <img 
+                src={getValidImgSrc(settings.profile_image, "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80")} 
+                onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80"; }} 
+                alt="Creator Avatar" 
+              />
               <div className="hero-live-tag">{mainStream?.status || "ONLINE"}</div>
             </div>
             <div className="hero-card-info">
@@ -484,7 +503,11 @@ export default function PublicWebsite() {
 
         <div className="stream-card-box">
           <div className="stream-media-wrap">
-            <img src={mainStream?.thumbnail_url || "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80"} alt="Stream Preview" />
+            <img 
+              src={getValidImgSrc(mainStream?.thumbnail_url, "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80")} 
+              onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80"; }} 
+              alt="Stream Preview" 
+            />
             <div className="stream-status-chip live">{mainStream?.status || "LIVE NOW"}</div>
           </div>
 
@@ -532,7 +555,11 @@ export default function PublicWebsite() {
           {sortedVideos.map((vid) => (
             <div key={vid.id} className={`video-card ${vid.is_trending ? 'trending-card' : ''}`}>
               <div className="video-thumb-box">
-                <img src={vid.thumbnail_url || "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=800&q=80"} alt={vid.title} />
+                <img 
+                  src={getValidImgSrc(vid.thumbnail_url, "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=800&q=80")} 
+                  onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=800&q=80"; }} 
+                  alt={vid.title} 
+                />
                 {vid.is_trending && (
                   <div className="trending-badge-chip">
                     <i className="fa-solid fa-fire"></i> TRENDING NOW
@@ -563,7 +590,11 @@ export default function PublicWebsite() {
       <section className="about-section" id="about">
         <div className="about-layout">
           <div className="about-image-card">
-            <img src={settings.profile_image || "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80"} alt="About Creator" />
+            <img 
+              src={getValidImgSrc(settings.profile_image, "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80")} 
+              onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80"; }} 
+              alt="About Creator" 
+            />
           </div>
 
           <div className="about-text-content">
