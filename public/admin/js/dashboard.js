@@ -1,5 +1,7 @@
 // Admin Dashboard Full CRUD Logic & View Switcher
 
+const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? 'https://youtuberweb.onrender.com' : '';
+
 let currentDashboardData = null;
 let currentEditStreamId = null;
 let currentEditVideoId = null;
@@ -20,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadDashboardData() {
   const token = getAdminToken();
   try {
-    const res = await fetch('/api/admin/dashboard-data', {
+    const res = await fetch(API_BASE_URL + '/api/admin/dashboard-data', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const json = await res.json();
@@ -439,7 +441,7 @@ async function saveSubscriberSettings(e) {
   const youtube_api_key = document.getElementById('sub-api-key-input').value;
 
   try {
-    const res = await fetch('/api/admin/subscribers', {
+    const res = await fetch(API_BASE_URL + '/api/admin/subscribers', {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -483,7 +485,7 @@ async function saveSupportSettings(e) {
   if (uploaded) qr_code_url = uploaded;
 
   try {
-    const res = await fetch('/api/admin/support', {
+    const res = await fetch(API_BASE_URL + '/api/admin/support', {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -532,7 +534,7 @@ async function saveAddSocialForm(e) {
   const icon_class = document.getElementById('social-icon-input').value;
 
   try {
-    const res = await fetch('/api/admin/socials', {
+    const res = await fetch(API_BASE_URL + '/api/admin/socials', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -594,7 +596,7 @@ async function saveWebsiteSettings(e) {
   if (uploaded) profile_image = uploaded;
 
   try {
-    const res = await fetch('/api/admin/settings', {
+    const res = await fetch(API_BASE_URL + '/api/admin/settings', {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -620,7 +622,7 @@ async function handleChangePassword(e) {
   const new_password = document.getElementById('pass-new-input').value;
 
   try {
-    const res = await fetch('/api/admin/change-password', {
+    const res = await fetch(API_BASE_URL + '/api/admin/change-password', {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/admin.css';
 
+const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? 'https://youtuberweb.onrender.com' : '';
+
 export default function AdminPortal() {
   const [token, setToken] = useState(localStorage.getItem('adminToken') || '');
   const [activeView, setActiveView] = useState('overview');
@@ -78,7 +80,7 @@ export default function AdminPortal() {
 
   const loadDashboard = async () => {
     try {
-      const res = await fetch('/api/admin/dashboard-data', {
+      const res = await fetch(`${API_BASE_URL}/api/admin/dashboard-data`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const json = await res.json();
@@ -106,7 +108,7 @@ export default function AdminPortal() {
     e.preventDefault();
     setAlertMsg({ type: '', text: '' });
     try {
-      const res = await fetch('/api/admin/login', {
+      const res = await fetch(`${API_BASE_URL}/api/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -135,7 +137,7 @@ export default function AdminPortal() {
     formData.append('file', file);
 
     try {
-      const res = await fetch('/api/admin/upload', {
+      const res = await fetch(`${API_BASE_URL}/api/admin/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
@@ -240,10 +242,10 @@ export default function AdminPortal() {
   const handleSaveVideo = async (e) => {
     e.preventDefault();
     const method = editVideoId ? 'PUT' : 'POST';
-    const url = editVideoId ? `/api/admin/videos/${editVideoId}` : '/api/admin/videos';
+    const targetUrl = editVideoId ? `${API_BASE_URL}/api/admin/videos/${editVideoId}` : `${API_BASE_URL}/api/admin/videos`;
 
     try {
-      const res = await fetch(url, {
+      const res = await fetch(targetUrl, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -265,7 +267,7 @@ export default function AdminPortal() {
 
   const toggleTrending = async (vidId, currentStatus) => {
     try {
-      const res = await fetch(`/api/admin/videos/${vidId}/trending`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/videos/${vidId}/trending`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -283,7 +285,7 @@ export default function AdminPortal() {
   const deleteVideo = async (id) => {
     if (!window.confirm('Delete this video entry?')) return;
     try {
-      const res = await fetch(`/api/admin/videos/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/videos/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -298,7 +300,7 @@ export default function AdminPortal() {
   const handleSaveSub = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/subscribers', {
+      const res = await fetch(`${API_BASE_URL}/api/admin/subscribers`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -321,7 +323,7 @@ export default function AdminPortal() {
   const handleSaveSupport = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/support', {
+      const res = await fetch(`${API_BASE_URL}/api/admin/support`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -351,7 +353,7 @@ export default function AdminPortal() {
     };
 
     try {
-      const res = await fetch('/api/admin/settings', {
+      const res = await fetch(`${API_BASE_URL}/api/admin/settings`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -373,7 +375,7 @@ export default function AdminPortal() {
   const handleAddSocial = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/socials', {
+      const res = await fetch(`${API_BASE_URL}/api/admin/socials`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -395,7 +397,7 @@ export default function AdminPortal() {
   const deleteSocial = async (id) => {
     if (!window.confirm('Delete social link?')) return;
     try {
-      const res = await fetch(`/api/admin/socials/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/socials/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -410,7 +412,7 @@ export default function AdminPortal() {
   const handleChangePassword = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/change-password', {
+      const res = await fetch(`${API_BASE_URL}/api/admin/change-password`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

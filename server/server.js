@@ -17,7 +17,11 @@ app.use(helmet({
   contentSecurityPolicy: false, // Allow external YouTube embeds and GSAP CDNs
   crossOriginEmbedderPolicy: false
 }));
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

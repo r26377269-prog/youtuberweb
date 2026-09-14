@@ -77,7 +77,8 @@ export default function PublicWebsite() {
 
   // 2. Fetch Public Data
   useEffect(() => {
-    fetch('/api/public/data')
+    const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? 'https://youtuberweb.onrender.com' : '';
+    fetch(`${API_BASE_URL}/api/public/data`)
       .then(res => res.json())
       .then(json => {
         if (json.success && json.data) {

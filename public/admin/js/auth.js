@@ -1,6 +1,7 @@
 // Admin Authentication Manager
 
 const AUTH_TOKEN_KEY = 'youtuber_admin_token';
+const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? 'https://youtuberweb.onrender.com' : '';
 
 // Save JWT Token
 function setAdminToken(token) {
@@ -23,7 +24,7 @@ async function verifyAdminAuth() {
   if (!token) return false;
 
   try {
-    const res = await fetch('/api/admin/verify', {
+    const res = await fetch(`${API_BASE_URL}/api/admin/verify`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -59,7 +60,7 @@ async function handleAdminLogin(event) {
   }
 
   try {
-    const res = await fetch('/api/admin/login', {
+    const res = await fetch(`${API_BASE_URL}/api/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
