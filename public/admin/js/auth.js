@@ -1,7 +1,8 @@
 // Admin Authentication Manager
 
 const AUTH_TOKEN_KEY = 'youtuber_admin_token';
-const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? 'https://youtuberweb.onrender.com' : '';
+var API_BASE_URL = window.API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? 'https://youtuberweb.onrender.com' : '');
+window.API_BASE_URL = API_BASE_URL;
 
 // Save JWT Token
 function setAdminToken(token) {
