@@ -34,6 +34,7 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // API Routes
 app.use('/api/public', apiRoutes);
+app.use('/api', apiRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Fallback to Index for SPA routing
