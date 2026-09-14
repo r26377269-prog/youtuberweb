@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CREATOR • Official YouTuber Website</title>
+  <meta name="description" content="Official YouTuber portfolio, live streams, latest videos, subscriber counter, and creator support hub for Alex Vance.">
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body>
+  <!-- AMBIENT CANVAS BACKGROUND GRADIENTS -->
+  <div class="ambient-glow ambient-1"></div>
+  <div class="ambient-glow ambient-2"></div>
+  <div class="ambient-glow ambient-3"></div>
+
+  <!-- FLOATING NAVIGATION BAR -->
+  <nav class="navbar">
+    <a href="#" class="nav-brand">
+      <img id="header-profile-img" src="https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=150&q=80" alt="Creator Profile">
+      <span id="header-creator-name">ALEX VANCE</span>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="#home">Home</a></li>
+      <li><a href="#streams">Live Streams</a></li>
+      <li><a href="#videos">Videos</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#support">Support</a></li>
+    </ul>
+
+    <a href="/admin" class="nav-btn-admin">
+      <i class="fa-solid fa-shield-halved"></i> Admin Portal
+    </a>
+  </nav>
+
+  <!-- HERO SECTION -->
+  <section class="hero-section" id="home">
+    <div class="hero-text-container">
+      <div class="hero-badge-chip">
+        <i class="fa-solid fa-bolt"></i> OFFICIAL YOUTUBER HUB
+      </div>
+      <h1 class="hero-title">
+        CREATING CONTENT THAT <span class="sky-text">INSPIRES MILLIONS</span>
+      </h1>
+      <div class="hero-subtitle">
+        I CREATE <span class="typing-text">GAMING</span>
+      </div>
+      <p class="hero-desc" id="hero-welcome-desc">
+        Welcome to my official creator portal. Catch daily live streams, custom gaming builds, tech reviews, and behind-the-scenes vlogs!
+      </p>
+      <div class="hero-buttons">
+        <a href="#streams" class="btn-primary">
+          <i class="fa-brands fa-youtube"></i> Watch Live Streams
+        </a>
+        <a href="#support" class="btn-secondary">
+          <i class="fa-solid fa-heart"></i> Support Creator
+        </a>
+      </div>
+    </div>
+
+    <div class="hero-card-wrap">
+      <div class="hero-spotlight-card">
+        <div class="hero-avatar-frame">
+          <img id="hero-avatar-img" src="https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80" alt="Spotlight Profile">
+          <div class="hero-live-tag" id="hero-status-tag">ONLINE</div>
+        </div>
+        <div class="hero-card-info">
+          <h3 id="spotlight-creator-name">ALEX VANCE</h3>
+          <p>Gaming & Tech Content Creator</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIVE STREAM SHOWCASE SECTION -->
+  <section class="stream-section" id="streams">
+    <div class="section-header">
+      <span class="section-tag">LIVE BROADCAST</span>
+      <h2 class="section-title-text">FEATURED <span>STREAM HUB</span></h2>
+    </div>
+
+    <div class="stream-card-box">
+      <div class="stream-media-wrap">
+        <img id="stream-thumb" src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80" alt="Stream Preview">
+        <div class="stream-status-chip live" id="stream-status-badge">LIVE NOW</div>
+      </div>
+
+      <div class="stream-info-wrap">
+        <h3 id="stream-title">🔥 UNSTOPPABLE 24-HOUR CYBER GAMING MARATHON & GIVEAWAY!</h3>
+        <p id="stream-desc">Join us live as we conquer the latest AAA game on ultra settings with viewer matches, chat challenges, and massive giveaway prizes!</p>
+
+        <div class="countdown-grid" id="stream-countdown-container">
+          <div class="countdown-card"><span id="cd-hours">00</span><label>Hours</label></div>
+          <div class="countdown-card"><span id="cd-mins">00</span><label>Mins</label></div>
+          <div class="countdown-card"><span id="cd-secs">00</span><label>Secs</label></div>
+        </div>
+
+        <div>
+          <a id="stream-watch-btn" href="https://youtube.com" target="_blank" class="btn-primary">
+            <i class="fa-brands fa-youtube"></i> Watch Live on YouTube
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIVE SUBSCRIBER COUNTER SECTION -->
+  <section class="subscriber-section">
+    <div class="sub-card-container">
+      <div class="sub-title">Current YouTube Subscribers</div>
+      <div class="sub-number-display" id="subscriber-counter-val">0</div>
+      <div class="sub-badge-pill" id="sub-status-info">
+        <i class="fa-solid fa-circle-check" style="color: #0284c7;"></i> Official YouTube Count
+      </div>
+    </div>
+  </section>
+
+  <!-- VIDEOS SHOWCASE SECTION -->
+  <section class="videos-section" id="videos">
+    <div class="section-header">
+      <span class="section-tag">LATEST CONTENT</span>
+      <h2 class="section-title-text">TRENDING <span>VIDEOS</span></h2>
+    </div>
+
+    <div class="videos-grid" id="videos-container">
+      <!-- Dynamic Video Cards loaded via JS -->
+    </div>
+  </section>
+
+  <!-- ABOUT SECTION -->
+  <section class="about-section" id="about">
+    <div class="about-layout">
+      <div class="about-image-card">
+        <img id="about-profile-img" src="https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80" alt="About Creator">
+      </div>
+
+      <div class="about-text-content">
+        <h2 id="about-heading">ABOUT ALEX VANCE</h2>
+        <p id="about-bio">
+          Welcome to my official creator portal. I produce high-energy gaming streams, tech reviews, and daily behind-the-scenes content for over 1.2M passionate viewers worldwide.
+        </p>
+
+        <div class="stats-counter-grid">
+          <div class="stat-box">
+            <h4>1.2M+</h4>
+            <p>Subscribers</p>
+          </div>
+          <div class="stat-box">
+            <h4>500+</h4>
+            <p>Videos Created</p>
+          </div>
+          <div class="stat-box">
+            <h4>150M+</h4>
+            <p>Total Views</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUPPORT & DONATION (UPI) SECTION -->
+  <section class="support-section" id="support">
+    <div class="section-header">
+      <span class="section-tag">SUPPORT CREATOR</span>
+      <h2 class="section-title-text">DIRECT <span>UPI DONATIONS</span></h2>
+    </div>
+
+    <div class="support-wrapper">
+      <div class="qr-display-box">
+        <img id="support-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=creator@upi%26pn=ALEX%20VANCE%26cu=INR" alt="UPI QR Code">
+        <p>Scan with any UPI App</p>
+      </div>
+
+      <div class="support-form-content">
+        <h3 id="support-creator-name-val">ALEX VANCE</h3>
+        <p class="desc-msg" id="support-message-val">Support the stream directly! Every contribution helps improve our stream hardware and production quality.</p>
+
+        <div class="upi-id-box">
+          <div>
+            <small style="color: #64748b; display: block; font-weight: 700; text-transform: uppercase; font-size: 0.75rem;">Official UPI ID</small>
+            <code id="support-upi-id-val">creator@upi</code>
+          </div>
+          <button class="btn-copy-upi" id="btn-copy-upi" onclick="copyUpiId()">COPY UPI ID</button>
+        </div>
+
+        <form onsubmit="handleUpiPayment(event)">
+          <label style="color: #334155; font-weight: 700; display: block; margin-bottom: 12px;">Select or Enter Support Amount (₹ INR)</label>
+          <div class="preset-buttons-row">
+            <button type="button" class="btn-preset-chip active" data-amount="50" onclick="setPresetAmount(50)">₹50</button>
+            <button type="button" class="btn-preset-chip" data-amount="100" onclick="setPresetAmount(100)">₹100</button>
+            <button type="button" class="btn-preset-chip" data-amount="500" onclick="setPresetAmount(500)">₹500</button>
+            <button type="button" class="btn-preset-chip" data-amount="1000" onclick="setPresetAmount(1000)">₹1000</button>
+          </div>
+
+          <input type="number" id="upi-custom-amount" class="amount-input-field" value="100" min="1" required placeholder="Enter Amount in ₹">
+
+          <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; font-size: 1.15rem; padding: 18px;">
+            <i class="fa-solid fa-bolt"></i> PROCEED TO PAY VIA UPI
+          </button>
+        </form>
+
+        <div id="upi-payment-feedback"></div>
+
+        <p class="upi-security-notice">
+          🔒 <strong>Secure Banking Intent:</strong> Clicking "Proceed to Pay" opens your installed UPI application (GPay, PhonePe, Paytm) with a direct payment intent. This website does not request, store, or process any PINs, OTPs, or passwords.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOCIAL MEDIA SECTION -->
+  <section class="socials-section">
+    <div class="section-header">
+      <span class="section-tag">COMMUNITY</span>
+      <h2 class="section-title-text">JOIN THE <span>CREATOR TRIBE</span></h2>
+    </div>
+
+    <div class="socials-cards-grid" id="socials-container">
+      <a href="https://youtube.com" target="_blank" class="social-glass-card"><i class="fa-brands fa-youtube"></i> YouTube</a>
+      <a href="https://instagram.com" target="_blank" class="social-glass-card"><i class="fa-brands fa-instagram"></i> Instagram</a>
+      <a href="https://discord.gg" target="_blank" class="social-glass-card"><i class="fa-brands fa-discord"></i> Discord</a>
+      <a href="https://x.com" target="_blank" class="social-glass-card"><i class="fa-brands fa-x-twitter"></i> X / Twitter</a>
+    </div>
+  </section>
+
+  <!-- SITE FOOTER -->
+  <footer class="site-footer">
+    <div class="footer-logo" id="footer-brand-name">ALEX VANCE</div>
+    <p class="footer-copy">© 2026 Official YouTuber Hub. All Rights Reserved.</p>
+  </footer>
+
+  <!-- SCRIPTS & ANIMATIONS -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  <script src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
+  <script src="./js/upi.js"></script>
+  <script src="./js/counter.js"></script>
+  <script src="./js/main.js"></script>
+</body>
+</html>

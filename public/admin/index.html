@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Portal Login • YouTuber Website</title>
+  <link rel="stylesheet" href="./css/admin.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <div class="login-logo">
+      <i class="fa-solid fa-shield-halved"></i> OWNER PORTAL
+    </div>
+    <p class="login-subtitle">Sign in to manage streams, videos, subscriber count & support settings</p>
+
+    <div id="login-alert" class="alert-box"></div>
+
+    <form onsubmit="handleAdminLogin(event)">
+      <div class="form-group">
+        <label for="login-email">Admin Email</label>
+        <input type="email" id="login-email" class="form-control" placeholder="admin@youtuber.com" required value="admin@youtuber.com">
+      </div>
+
+      <div class="form-group">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" class="form-control" placeholder="••••••••" required value="admin123">
+      </div>
+
+      <button type="submit" id="login-submit-btn" class="btn-admin-primary">
+        LOG IN TO PORTAL
+      </button>
+    </form>
+  </div>
+
+  <script src="./js/auth.js"></script>
+  <script>
+    // Auto check if already logged in
+    document.addEventListener('DOMContentLoaded', async () => {
+      const isValid = await verifyAdminAuth();
+      if (isValid) {
+        window.location.href = '/admin/dashboard';
+      }
+    });
+  </script>
+</body>
+</html>

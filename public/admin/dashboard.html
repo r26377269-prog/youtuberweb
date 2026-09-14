@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard • YouTuber Website</title>
+  <link rel="stylesheet" href="./css/admin.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body>
+  <div class="dashboard-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2><i class="fa-solid fa-shield-halved"></i> ADMIN PORTAL</h2>
+      </div>
+
+      <ul class="sidebar-menu">
+        <li><a href="#" class="active" data-view="overview"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+        <li><a href="#" data-view="streams"><i class="fa-solid fa-tower-cell"></i> Live Streams</a></li>
+        <li><a href="#" data-view="videos"><i class="fa-brands fa-youtube"></i> Videos</a></li>
+        <li><a href="#" data-view="subscribers"><i class="fa-solid fa-users"></i> Subscribers</a></li>
+        <li><a href="#" data-view="support"><i class="fa-solid fa-qrcode"></i> Support / UPI</a></li>
+        <li><a href="#" data-view="socials"><i class="fa-solid fa-share-nodes"></i> Social Media</a></li>
+        <li><a href="#" data-view="settings"><i class="fa-solid fa-sliders"></i> Website Settings</a></li>
+        <li><a href="#" data-view="profile"><i class="fa-solid fa-lock"></i> Security & Password</a></li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <button class="btn-logout" onclick="logoutAdmin()">
+          <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="main-content">
+      <header class="content-header">
+        <h1 id="current-view-title">Dashboard Overview</h1>
+        <a href="/" target="_blank" style="color: var(--wheat-accent); text-decoration: none; font-weight: 700;">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> View Live Website
+        </a>
+      </header>
+
+      <!-- 1. OVERVIEW VIEW -->
+      <section id="view-overview" class="view-section">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-brands fa-youtube"></i></div>
+            <div class="stat-info">
+              <h3 id="stat-total-videos">0</h3>
+              <p>Total Videos</p>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-tower-cell"></i></div>
+            <div class="stat-info">
+              <h3 id="stat-total-streams">0</h3>
+              <p>Live Streams</p>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
+            <div class="stat-info">
+              <h3 id="stat-sub-count">0</h3>
+              <p>Subscribers</p>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-qrcode"></i></div>
+            <div class="stat-info">
+              <h3 id="stat-upi-id" style="font-size: 1.1rem; word-break: break-all;">creator@upi</h3>
+              <p>Active UPI ID</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Quick System Status</h2>
+          </div>
+          <p style="color: var(--text-muted); line-height: 1.6;">
+            Welcome back to your owner dashboard. All changes made here immediately update the public website.
+          </p>
+        </div>
+      </section>
+
+      <!-- 2. STREAMS VIEW -->
+      <section id="view-streams" class="view-section" style="display: none;">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Live / Upcoming Stream Management</h2>
+            <button class="btn-admin-primary" style="width: auto; padding: 10px 20px;" onclick="openAddStreamModal()">
+              <i class="fa-solid fa-plus"></i> Add Stream
+            </button>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Thumbnail</th>
+                <th>Title</th>
+                <th>Scheduled Date/Time</th>
+                <th>Status</th>
+                <th>Link</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="streams-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 3. VIDEOS VIEW -->
+      <section id="view-videos" class="view-section" style="display: none;">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Video Management</h2>
+            <button class="btn-admin-primary" style="width: auto; padding: 10px 20px;" onclick="openAddVideoModal()">
+              <i class="fa-solid fa-plus"></i> Add Video
+            </button>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Thumbnail</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Trending Status</th>
+                <th>YouTube Link</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="videos-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 4. SUBSCRIBERS VIEW -->
+      <section id="view-subscribers" class="view-section" style="display: none;">
+        <div class="card">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div>
+              <h2 class="card-title"><i class="fa-solid fa-users"></i> Subscriber Counter Settings Table</h2>
+              <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Edit live subscriber count, font typography, and YouTube API sync configurations.</p>
+            </div>
+            <button class="btn-admin-primary" style="width: auto; padding: 10px 22px;" onclick="openEditSubModal()">
+              <i class="fa-solid fa-pen-to-square"></i> Edit Subscriber Table
+            </button>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Setting Name</th>
+                <th>Current Value / Preview</th>
+                <th>Config Type</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="subscribers-table-body">
+              <!-- Rendered dynamically via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 5. SUPPORT / UPI VIEW -->
+      <section id="view-support" class="view-section" style="display: none;">
+        <div class="card" style="max-width: 650px;">
+          <div class="card-header">
+            <h2 class="card-title">Support / UPI Donation Settings</h2>
+          </div>
+          <form onsubmit="saveSupportSettings(event)">
+            <div class="form-group">
+              <label>UPI ID (e.g. creator@upi)</label>
+              <input type="text" id="upi-id-input" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label>Payment / Creator Name</label>
+              <input type="text" id="upi-name-input" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label>Default Support Amount (₹ INR)</label>
+              <input type="number" id="upi-amount-input" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label>Support Message</label>
+              <textarea id="upi-message-input" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>QR Code Image URL or Upload</label>
+              <input type="text" id="upi-qr-preview" class="form-control" placeholder="http://... image link" style="margin-bottom: 10px;">
+              <input type="file" id="upi-qr-file" class="form-control" accept="image/*">
+            </div>
+
+            <button type="submit" class="btn-admin-primary" style="margin-top: 15px;">Save Support & UPI Settings</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- 6. SOCIAL MEDIA VIEW -->
+      <section id="view-socials" class="view-section" style="display: none;">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Social Media Links</h2>
+          </div>
+
+          <form id="social-form" onsubmit="saveAddSocialForm(event)" style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; margin-bottom: 30px; align-items: end;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Platform Name</label>
+              <input type="text" id="social-platform-input" class="form-control" placeholder="Discord" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>URL</label>
+              <input type="url" id="social-url-input" class="form-control" placeholder="https://discord.gg/..." required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>FontAwesome Icon Class</label>
+              <input type="text" id="social-icon-input" class="form-control" placeholder="fa-brands fa-discord">
+            </div>
+            <button type="submit" class="btn-admin-primary" style="width: auto; padding: 14px 24px;">Add Link</button>
+          </form>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Platform</th>
+                <th>URL</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="socials-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 7. WEBSITE SETTINGS VIEW -->
+      <section id="view-settings" class="view-section" style="display: none;">
+        <div class="card" style="max-width: 700px;">
+          <div class="card-header">
+            <h2 class="card-title">General Website Branding & Text Settings</h2>
+          </div>
+          <form onsubmit="saveWebsiteSettings(event)">
+            <div class="form-group">
+              <label>Website Title</label>
+              <input type="text" id="setting-title-input" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label>Creator Brand Name</label>
+              <input type="text" id="setting-name-input" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label>Hero Welcome Text Line 1</label>
+              <input type="text" id="setting-hero-welcome-input" class="form-control">
+            </div>
+
+            <div class="form-group">
+              <label>Hero Subtitle Typing Words (comma-separated)</label>
+              <input type="text" id="setting-typing-input" class="form-control" placeholder="GAMING, LIVE STREAMS, TECH REVIEWS">
+            </div>
+
+            <div class="form-group">
+              <label>Profile Image URL or Upload</label>
+              <input type="text" id="setting-profile-preview" class="form-control" placeholder="https://... image link" style="margin-bottom: 10px;">
+              <input type="file" id="setting-profile-file" class="form-control" accept="image/*">
+            </div>
+
+            <div class="form-group">
+              <label>About Creator Biography Text</label>
+              <textarea id="setting-about-input" class="form-control" rows="4"></textarea>
+            </div>
+
+            <button type="submit" class="btn-admin-primary" style="margin-top: 15px;">Update Website Settings</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- 8. SECURITY & PROFILE VIEW -->
+      <section id="view-profile" class="view-section" style="display: none;">
+        <div class="card" style="max-width: 500px;">
+          <div class="card-header">
+            <h2 class="card-title">Change Admin Password</h2>
+          </div>
+          <form id="password-form" onsubmit="handleChangePassword(event)">
+            <div class="form-group">
+              <label>Current Password</label>
+              <input type="password" id="pass-current-input" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label>New Password (min 6 chars)</label>
+              <input type="password" id="pass-new-input" class="form-control" required minlength="6">
+            </div>
+
+            <button type="submit" class="btn-admin-primary" style="margin-top: 15px;">Update Password</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODALS -->
+  <!-- Stream Modal -->
+  <div id="stream-modal" class="modal-backdrop">
+    <div class="modal-content">
+      <h2 id="stream-modal-title" class="card-title" style="margin-bottom: 20px;">Stream Entry</h2>
+      <form id="stream-form" onsubmit="saveStreamForm(event)">
+        <div class="form-group">
+          <label>Stream Title</label>
+          <input type="text" id="stream-title-input" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Stream Description</label>
+          <textarea id="stream-desc-input" class="form-control" rows="3"></textarea>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div class="form-group">
+            <label>Scheduled Date</label>
+            <input type="date" id="stream-date-input" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Scheduled Time</label>
+            <input type="time" id="stream-time-input" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>YouTube Live / Video Link</label>
+          <input type="url" id="stream-url-input" class="form-control" placeholder="https://youtube.com/watch?v=...">
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="stream-status-select" class="form-control">
+            <option value="LIVE NOW">LIVE NOW</option>
+            <option value="UPCOMING">UPCOMING</option>
+            <option value="ENDED">ENDED</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Thumbnail Image URL or Upload</label>
+          <input type="text" id="stream-thumb-preview" class="form-control" placeholder="https://..." style="margin-bottom: 10px;">
+          <input type="file" id="stream-thumb-file" class="form-control" accept="image/*">
+        </div>
+        <div style="display: flex; gap: 15px; margin-top: 25px;">
+          <button type="submit" class="btn-admin-primary">Save Stream</button>
+          <button type="button" class="btn-sm btn-delete" style="padding: 14px 20px;" onclick="closeStreamModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Video Modal -->
+  <div id="video-modal" class="modal-backdrop">
+    <div class="modal-content">
+      <h2 id="video-modal-title" class="card-title" style="margin-bottom: 20px;">Video Entry</h2>
+      <form id="video-form" onsubmit="saveVideoForm(event)">
+        <div class="form-group">
+          <label>Video Title</label>
+          <input type="text" id="video-title-input" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Video Description</label>
+          <textarea id="video-desc-input" class="form-control" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label>YouTube Video Link</label>
+          <input type="url" id="video-url-input" class="form-control" placeholder="https://youtube.com/watch?v=..." required>
+        </div>
+        <div class="form-group">
+          <label>Category Tag</label>
+          <input type="text" id="video-category-input" class="form-control" placeholder="Gaming Tips">
+        </div>
+        <div class="form-group">
+          <label>Thumbnail Image URL or Upload</label>
+          <input type="text" id="video-thumb-preview" class="form-control" placeholder="https://..." style="margin-bottom: 10px;">
+          <input type="file" id="video-thumb-file" class="form-control" accept="image/*">
+        </div>
+        <div class="form-group" style="display: flex; align-items: center; gap: 12px; margin: 15px 0; background: #fff7ed; padding: 12px 16px; border-radius: 12px; border: 1px solid #ffedd5;">
+          <input type="checkbox" id="video-trending-toggle" style="width: 20px; height: 20px; accent-color: #f97316; cursor: pointer;">
+          <label for="video-trending-toggle" style="margin-bottom: 0; cursor: pointer; text-transform: none; font-size: 0.95rem; font-weight: 700; color: #c2410c;">🔥 Mark as Trending Video (Highlight on Homepage)</label>
+        </div>
+        <div style="display: flex; gap: 15px; margin-top: 25px;">
+          <button type="submit" class="btn-admin-primary">Save Video</button>
+          <button type="button" class="btn-sm btn-delete" style="padding: 14px 20px;" onclick="closeVideoModal()">Cancel</button>
+        </div>
+  <!-- Subscriber Counter Edit Modal -->
+  <div id="sub-modal" class="modal-backdrop">
+    <div class="modal-content" style="max-width: 580px;">
+      <h2 id="sub-modal-title" class="card-title" style="margin-bottom: 20px;"><i class="fa-solid fa-users"></i> Edit Subscriber Counter Table</h2>
+      <form id="sub-form" onsubmit="saveSubscriberSettings(event)">
+        <div class="form-group">
+          <label>Live Subscriber Count</label>
+          <input type="number" id="sub-count-input" class="form-control" placeholder="1245890" required>
+        </div>
+
+        <div class="form-group">
+          <label>Subscriber Count Font Style</label>
+          <select id="sub-font-select" class="form-control" style="font-weight: 600;">
+            <option value="'Bebas Neue', sans-serif">Bebas Neue (Bold Impact Display)</option>
+            <option value="'Outfit', sans-serif">Outfit (Clean Geometric Modern)</option>
+            <option value="'Space Grotesk', sans-serif">Space Grotesk (Tech Modern)</option>
+            <option value="'Orbitron', sans-serif">Orbitron (Futuristic Cyber/Gaming)</option>
+            <option value="'Syne', sans-serif">Syne (Artistic Heavy)</option>
+            <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans (Standard Clean)</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="display: flex; align-items: center; gap: 12px; margin: 20px 0; background: #f0f9ff; padding: 14px 18px; border-radius: 12px; border: 1px solid var(--admin-border);">
+          <input type="checkbox" id="sub-api-toggle" style="width: 22px; height: 22px; accent-color: var(--sky-accent); cursor: pointer;">
+          <label for="sub-api-toggle" style="margin-bottom: 0; cursor: pointer; text-transform: none; font-size: 0.95rem; font-weight: 700; color: var(--text-main);">Enable Automatic YouTube API Sync</label>
+        </div>
+
+        <div class="form-group">
+          <label>YouTube Channel ID (Optional for API Sync)</label>
+          <input type="text" id="sub-channel-id-input" class="form-control" placeholder="UCxxxxxxxxxxxx">
+        </div>
+
+        <div class="form-group">
+          <label>YouTube Data API Key (Optional)</label>
+          <input type="password" id="sub-api-key-input" class="form-control" placeholder="AIzaSy...">
+        </div>
+
+        <div style="display: flex; gap: 15px; margin-top: 25px;">
+          <button type="submit" class="btn-admin-primary">Save Subscriber Table Settings</button>
+          <button type="button" class="btn-sm btn-delete" style="padding: 14px 20px;" onclick="closeSubModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="./js/auth.js"></script>
+  <script src="./js/dashboard.js"></script>
+</body>
+</html>

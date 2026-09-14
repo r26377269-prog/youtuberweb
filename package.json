@@ -1,0 +1,32 @@
+{
+  "name": "youtuber-website-supabase",
+  "version": "1.0.0",
+  "description": "Complete animated YouTuber portfolio website with secure Admin Portal and Supabase backend",
+  "main": "server/server.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server/server.js",
+    "init-db": "node scripts/init_db.js"
+  },
+  "dependencies": {
+    "@studio-freight/lenis": "^1.0.42",
+    "@supabase/supabase-js": "^2.39.8",
+    "@vitejs/plugin-react": "^6.1.1",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
+    "gsap": "^3.15.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^1.45.0",
+    "multer": "^1.4.5-lts.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.3",
+    "vite": "^8.3.0"
+  }
+}

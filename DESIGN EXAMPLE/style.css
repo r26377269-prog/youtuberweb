@@ -1,0 +1,285 @@
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body{
+  background: #000;
+}
+
+/* MAIN */
+.main{
+  width: 100%;
+}
+
+/* NAVBAR */
+nav{
+  width: 100%;
+  height: 60px;
+  display: flex;
+  background: #0b0b0f;
+  position: sticky;
+  top: 0;
+}
+
+/* LEFT NAV */
+.leftnav{
+  width: 80%;
+  height: 60px;
+  display: flex;
+  align-items: center;
+}
+
+/* LEFT NAV ITEMS */
+.leftnavitem{
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  padding-left: 60px;
+}
+
+/* LEFT NAV LINKS */
+.leftnavitem a{
+  font-size: 1.4rem;
+  color: #e5e7eb;
+  text-decoration: none;
+  position: relative;
+  transition: color .3s ease;
+}
+
+/* underline animation */
+.leftnavitem a::after{
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -6px;
+  width: 0%;
+  height: 2px;
+  background: #38bdf8;
+  transition: width .3s ease;
+}
+
+.leftnavitem a:hover{
+  color: #38bdf8;
+}
+
+.leftnavitem a:hover::after{
+  width: 100%;
+}
+
+/* RIGHT NAV */
+.rightnav{
+  width: 20%;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* CONTACT BUTTON */
+.contect{
+  min-width: 130px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border-radius: 999px;
+  border: none;
+   opacity: 0;
+  transform: translateY(-60px);
+  transition: all .35s ease;
+}
+
+.contect a{
+  text-decoration: none;
+  color: #022c22; 
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: .3px;
+  
+}
+
+/* CONTACT hover */
+.contect:hover{
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 10px 25px rgba(34,197,94,.35);
+}
+
+.contect:hover a{
+  color: #ecfdf5;
+}
+
+.page1{
+  width: 100%;
+  height: 200vh;
+  background: black;
+  color: #e5e7eb;
+}
+.page1 h1{
+  font-size: 3rem;
+}
+.welcomescreen{
+  position: relative;
+  top: 10px;
+  width: 250px;
+  height: 120px;
+  background: #000;
+}
+
+.videospace {
+  width: 50%;
+  height: 40%;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+}
+
+.videospace video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.section2 {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100vh;
+  background-color: #000;
+  z-index: 2;
+}
+.sticky {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.sticky h1 {
+  font-size: 17rem;
+  position: absolute;
+  font-family: Arial, Helvetica, sans-serif;
+  text-transform: uppercase;
+  left: 7%;
+  color: #fff;
+  top: 35%;
+  font-weight: bold;
+
+}
+
+.simple_text {
+  opacity: 0.3;
+}
+
+.complex_text {
+  opacity: 1;
+  width: 0%;
+  /* background: #000; */
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.section3{
+  position: relative;
+  width: 100%;
+  height: 200vh;
+  background: red;
+  z-index: 4;
+}
+.text_scroll {
+  width: 100%;
+  position: relative;
+  background-color: #fff8e2;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  z-index: 99;
+}
+
+.leftText {
+  width: 40%;
+  position: sticky;
+  top: 70px;
+  height: 400px;
+}
+
+.left_textBox h1 {
+  text-transform: uppercase;
+  font-size: 7rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+}
+
+.left_textBox div {
+  width: 100px;
+  height: 100px;
+  background-color: #000;
+  color: #fff;
+  font-size: 4rem;
+  place-items: center;
+  display: grid;
+  border-radius: 50%;
+  line-height: 1.9;
+}
+
+.rightText {
+  width: 30%;
+}
+
+.rightState {
+  width: 100%;
+  position: relative;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: lighter;
+  padding: 20px;
+}
+
+.scroll_element {
+  width: 80%;
+  border-bottom: 1px solid #000;
+  padding-bottom: 50px;
+  margin: 50px 0;
+  opacity: 0.3;
+}
+.scroll_element h1 {
+  font-size: 3rem;
+  margin-bottom: 40px;
+  color: #000000ce;
+}
+.scroll_element p {
+  font-size: 1.5rem;
+  color: #0000007a;
+}
+
+.scroll_element:last-child {
+  border-bottom: none;
+}
+
+
+.section_last {
+  width: 100%;
+  height: 100vh;
+  z-index: 100;
+  background: #000;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 13rem;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: lighter;
+  text-transform: uppercase;
+  color: #fff;
+  overflow: hidden;
+}
+
+.section_last h1 {
+  white-space: nowrap;
+  position: absolute;
+  left : 5%;
+  top: 17%;
+}

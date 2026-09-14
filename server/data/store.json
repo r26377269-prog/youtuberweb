@@ -1,0 +1,138 @@
+{
+  "settings": {
+    "id": 1,
+    "website_title": "SavouR GaminG",
+    "creator_name": "SavouR GaminG",
+    "profile_image": "/uploads/upload-1789378737077-363215173.jpg",
+    "logo_url": "",
+    "hero_welcome_text": "WELCOME TO THE SavouR GaminG",
+    "hero_typing_texts": [
+      "GAMING",
+      "LIVE STREAMS",
+      "TECH REVIEWS",
+      "DAILY VLOGS"
+    ],
+    "youtube_channel_url": "https://youtube.com",
+    "hero_video_url": "",
+    "about_text": "Welcome to my official creator portal. I produce high-energy gaming streams, tech reviews, and daily behind-the-scenes content.",
+    "updated_at": "2026-09-14T09:38:58.092Z"
+  },
+  "streams": [
+    {
+      "id": "stream-1789314350394",
+      "title": "minecraft best new smp Losthave! live! join now!",
+      "description": "minecraft best new smp Losthave! live! join now!",
+      "thumbnail_url": "/uploads/upload-1789378658226-247789479.jpg",
+      "scheduled_date": "2026-09-14",
+      "scheduled_time": "05:05",
+      "youtube_url": "https://www.youtube.com/live/Y_NMITw1-gQ?si=O-GJTg7OFAmtJXih",
+      "status": "UPCOMING",
+      "created_at": "2026-09-13T15:45:50.394Z"
+    }
+  ],
+  "videos": [
+    {
+      "id": "vid-1789314140320",
+      "title": "ddd",
+      "description": "dddd",
+      "youtube_url": "https://www.youtube.com/live/uwIEXre8VuQ?si=ZXdK6TEFWFTWNznv",
+      "thumbnail_url": "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=800&q=80",
+      "category": "dddddd",
+      "status": "published",
+      "is_trending": false,
+      "created_at": "2026-09-13T15:42:20.320Z"
+    },
+    {
+      "id": "vid-1",
+      "title": "I Built the Ultimate $10,000 Custom PC Setup!",
+      "description": "Complete room tour & build log of the fastest water-cooled PC on Earth with custom RGB and wall mounts.",
+      "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "thumbnail_url": "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=800&q=80",
+      "category": "Tech & Builds",
+      "status": "published",
+      "is_trending": true,
+      "created_at": "2026-09-13T15:06:08.753Z"
+    },
+    {
+      "id": "vid-2",
+      "title": "10 Secrets Every Gamer Needs To Know in 2026",
+      "description": "Unlocking hidden graphics settings, FPS boosters, and pro control techniques that pros do not tell you.",
+      "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "thumbnail_url": "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=800&q=80",
+      "category": "Gaming Tips",
+      "status": "published",
+      "is_trending": false,
+      "created_at": "2026-09-13T15:06:08.753Z"
+    },
+    {
+      "id": "vid-3",
+      "title": "24 Hours Inside an Esports Bootcamp House!",
+      "description": "Behind the scenes vlog showing how professional players train, live, and prepare for international tournaments.",
+      "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "thumbnail_url": "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80",
+      "category": "Vlogs",
+      "status": "published",
+      "created_at": "2026-09-13T15:06:08.753Z"
+    }
+  ],
+  "subscribers": {
+    "id": 1,
+    "count": 1,
+    "is_api_enabled": false,
+    "youtube_channel_id": "",
+    "youtube_api_key": "",
+    "counter_font": "'Syne', sans-serif",
+    "updated_at": "2026-09-14T08:51:26.610Z"
+  },
+  "support_settings": {
+    "id": 1,
+    "upi_id": "fam_6ed9893641acd2ccea33e06b93ebab3d6c7871ef@fam",
+    "creator_name": "SavouR GaminG",
+    "qr_code_url": "/uploads/upload-1789378413739-723877338.png",
+    "default_amount": 149,
+    "support_message": "Support the stream directly to enable bigger production values and gear upgrades!",
+    "updated_at": "2026-09-14T09:38:30.011Z"
+  },
+  "social_links": [
+    {
+      "id": "s-1",
+      "platform": "YouTube",
+      "url": "https://youtube.com",
+      "icon_class": "fa-brands fa-youtube",
+      "is_active": true,
+      "sort_order": 1
+    },
+    {
+      "id": "s-2",
+      "platform": "Instagram",
+      "url": "https://instagram.com",
+      "icon_class": "fa-brands fa-instagram",
+      "is_active": true,
+      "sort_order": 2
+    },
+    {
+      "id": "s-3",
+      "platform": "Discord",
+      "url": "https://discord.gg",
+      "icon_class": "fa-brands fa-discord",
+      "is_active": true,
+      "sort_order": 3
+    },
+    {
+      "id": "s-4",
+      "platform": "X / Twitter",
+      "url": "https://x.com",
+      "icon_class": "fa-brands fa-x-twitter",
+      "is_active": true,
+      "sort_order": 4
+    }
+  ],
+  "admin_users": [
+    {
+      "id": "admin-1",
+      "email": "admin@youtuber.com",
+      "password_hash": "$2a$10$jU0gyy.p.y3j9Gu38nbi1etVFr/4d8cUcho.IbPBVrrNNhy5QrduG",
+      "created_at": "2026-09-13T15:06:08.853Z"
+    }
+  ]
+}
