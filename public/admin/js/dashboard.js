@@ -450,11 +450,42 @@ async function deleteVideo(id) {
 }
 
 // 5. SUBSCRIBER TABLE & MODAL LOGIC
+function saveInlineSubCount() {
+  const inputEl = document.getElementById('inline-sub-count-input');
+  if (!inputEl) return;
+  const newCount = Number(inputEl.value) || 0;
+
+  if (!currentDashboardData) currentDashboardData = {};
+  if (!currentDashboardData.subscribers) {
+    currentDashboardData.subscribers = { count: newCount, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: false };
+  } else {
+    currentDashboardData.subscribers.count = newCount;
+  }
+
+  localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
+  renderSubscribersTable();
+  renderOverviewStats();
+  alert('Subscriber count updated to ' + newCount.toLocaleString() + '!');
+
+  const token = getAdminToken();
+  if (token) {
+    fetch(API_BASE_URL + '/api/admin/subscribers', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(currentDashboardData.subscribers)
+    }).catch(err => console.warn('API sync warning:', err));
+  }
+}
+window.saveInlineSubCount = saveInlineSubCount;
+
 function renderSubscribersTable() {
   const tbody = document.getElementById('subscribers-table-body');
-  if (!tbody || !currentDashboardData || !currentDashboardData.subscribers) return;
+  if (!tbody) return;
 
-  const s = currentDashboardData.subscribers;
+  const s = (currentDashboardData && currentDashboardData.subscribers) ? currentDashboardData.subscribers : { count: 1245890, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: false };
   const fontDisplayNames = {
     "'Bebas Neue', sans-serif": "Bebas Neue (Bold Display)",
     "'Outfit', sans-serif": "Outfit (Clean Geometric)",
@@ -468,10 +499,15 @@ function renderSubscribersTable() {
   tbody.innerHTML = `
     <tr>
       <td><strong><i class="fa-solid fa-calculator" style="color:var(--sky-accent); margin-right:8px;"></i> Live Subscriber Count</strong></td>
-      <td><span class="badge-sub-val" style="font-size: 1.25rem; font-weight: 800; color: #0f172a;">${(Number(s.count) || 0).toLocaleString()}</span></td>
+      <td>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="number" id="inline-sub-count-input" value="${s.count !== undefined ? s.count : 1245890}" style="padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 800; font-size: 1.1rem; width: 130px;" />
+          <button class="btn-sm btn-edit" onclick="saveInlineSubCount()"><i class="fa-solid fa-check"></i> Save</button>
+        </div>
+      </td>
       <td>Manual numeric count on public website</td>
       <td>
-        <button class="btn-sm btn-edit" onclick="openEditSubModal()"><i class="fa-solid fa-pen"></i> Edit</button>
+        <button class="btn-sm btn-edit" onclick="openEditSubModal()"><i class="fa-solid fa-pen"></i> Edit Table</button>
       </td>
     </tr>
     <tr>
