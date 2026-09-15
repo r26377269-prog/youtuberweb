@@ -413,7 +413,7 @@ export default function AdminPortal() {
     setShowSubModal(true);
   };
 
-  const handleSaveSub = async (e) => {
+  const handleSaveSub = (e) => {
     e.preventDefault();
     const updatedSub = {
       ...subForm,
@@ -421,21 +421,20 @@ export default function AdminPortal() {
     };
     updateStoreLocal('subscribers', updatedSub);
     setSubForm(updatedSub);
+    setShowSubModal(false);
+    alert('Subscriber count and settings updated successfully!');
 
-    try {
-      await fetch(`${API_BASE_URL}/api/admin/subscribers`, {
+    // Async server sync
+    if (token) {
+      fetch(`${API_BASE_URL}/api/admin/subscribers`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(updatedSub)
-      });
-    } catch (err) {
-      console.warn('API save subscriber warning:', err);
+      }).catch(err => console.warn('API save subscriber warning:', err));
     }
-    setShowSubModal(false);
-    alert('Subscriber count and settings updated successfully!');
   };
 
   // --- SUPPORT / UPI SAVE ---
