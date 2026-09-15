@@ -141,20 +141,34 @@ export default function PublicWebsite() {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  // 3. Typing Subtitle Loop Effect
+  // 3. Dynamic Typing Subtitle Loop Effect & Title Sync
   useEffect(() => {
-    const textList = ["GAMING MARATHONS", "TECH REVIEWS", "LIVE STREAMS", "DAILY VLOGS"];
+    if (data?.settings?.website_title) {
+      document.title = data.settings.website_title;
+    }
+  }, [data]);
+
+  useEffect(() => {
+    const rawPhrases = data?.settings?.hero_typing_texts;
+    let textList = ["GAMING MARATHONS", "TECH REVIEWS", "LIVE STREAMS", "DAILY VLOGS"];
+    if (Array.isArray(rawPhrases) && rawPhrases.length > 0) {
+      textList = rawPhrases;
+    } else if (typeof rawPhrases === 'string' && rawPhrases.trim().length > 0) {
+      textList = rawPhrases.split(',').map(s => s.trim()).filter(Boolean);
+    }
+
     let wordIdx = 0;
     let charIdx = 0;
     let isDeleting = false;
     let timer;
 
     function typeLoop() {
-      const currentWord = textList[wordIdx];
+      if (!textList || textList.length === 0) return;
+      const currentWord = textList[wordIdx % textList.length] || "GAMING MARATHONS";
       if (!isDeleting) {
         setTypingText(currentWord.substring(0, charIdx + 1));
         charIdx++;
-        if (charIdx === currentWord.length) {
+        if (charIdx >= currentWord.length) {
           isDeleting = true;
           timer = setTimeout(typeLoop, 1200);
           return;
@@ -162,7 +176,7 @@ export default function PublicWebsite() {
       } else {
         setTypingText(currentWord.substring(0, charIdx - 1));
         charIdx--;
-        if (charIdx === 0) {
+        if (charIdx <= 0) {
           isDeleting = false;
           wordIdx = (wordIdx + 1) % textList.length;
         }
@@ -172,7 +186,7 @@ export default function PublicWebsite() {
 
     timer = setTimeout(typeLoop, 400);
     return () => clearTimeout(timer);
-  }, []);
+  }, [data]);
 
   // 4. GSAP Animations & ScrollTrigger Setup (Clean, subtle & ultra-smooth)
   useEffect(() => {
@@ -546,7 +560,10 @@ export default function PublicWebsite() {
       <section className="subscriber-section">
         <div className="sub-card-container">
           <div className="sub-title">Current YouTube Subscribers</div>
-          <div className="sub-number-display">
+          <div 
+            className="sub-number-display" 
+            style={{ fontFamily: (subscribers && subscribers.counter_font) ? subscribers.counter_font : "'Bebas Neue', sans-serif" }}
+          >
             {displayCount.toLocaleString()}
           </div>
           <div className="sub-badge-pill">
