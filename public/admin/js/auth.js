@@ -12,7 +12,12 @@ function setAdminToken(token) {
 
 // Retrieve JWT Token
 function getAdminToken() {
-  return localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem('adminToken') || 'static-admin-token-default';
+  const token = localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem('adminToken');
+  if (token === 'static-admin-token-default') {
+    removeAdminToken();
+    return '';
+  }
+  return token || '';
 }
 
 // Clear JWT Token (Logout)

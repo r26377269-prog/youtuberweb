@@ -16,15 +16,15 @@
 
     <div id="login-alert" class="alert-box"></div>
 
-    <form onsubmit="handleAdminLogin(event)">
+    <form onsubmit="handleAdminLogin(event)" autocomplete="off">
       <div class="form-group">
         <label for="login-email">Admin Username or Email</label>
-        <input type="text" id="login-email" class="form-control" placeholder="admin" required value="admin">
+        <input type="text" id="login-email" class="form-control" placeholder="Enter admin username or email" required autocomplete="username">
       </div>
 
       <div class="form-group">
         <label for="login-password">Password</label>
-        <input type="password" id="login-password" class="form-control" placeholder="••••••••" required value="331025">
+        <input type="password" id="login-password" class="form-control" placeholder="Enter password" required autocomplete="current-password">
       </div>
 
       <button type="submit" id="login-submit-btn" class="btn-admin-primary">

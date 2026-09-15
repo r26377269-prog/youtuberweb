@@ -4,14 +4,25 @@ import '../styles/admin.css';
 const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? 'https://youtuberweb.onrender.com' : '';
 
 export default function AdminPortal() {
-  const [token, setToken] = useState(localStorage.getItem('adminToken') || localStorage.getItem('youtuber_admin_token') || 'static-admin-token-default');
+  const getStoredToken = () => {
+    if (typeof window === 'undefined') return '';
+    const stored = localStorage.getItem('adminToken') || localStorage.getItem('youtuber_admin_token');
+    if (stored === 'static-admin-token-default') {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('youtuber_admin_token');
+      return '';
+    }
+    return stored || '';
+  };
+
+  const [token, setToken] = useState(getStoredToken);
   const [activeView, setActiveView] = useState('overview');
   const [dashboardData, setDashboardData] = useState(null);
   const [alertMsg, setAlertMsg] = useState({ type: '', text: '' });
 
-  // Login Form State (Prefilled with admin and 331025)
-  const [email, setEmail] = useState('admin@gmail.com');
-  const [password, setPassword] = useState('331025');
+  // Login Form State (Empty by default for security)
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   // Modals visibility
   const [showStreamModal, setShowStreamModal] = useState(false);
@@ -152,12 +163,18 @@ export default function AdminPortal() {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPass = password.trim();
 
+    if (!cleanEmail || !cleanPass) {
+      setAlertMsg({ type: 'danger', text: 'Please enter both username/email and password.' });
+      return;
+    }
+
     // Check valid local credentials (supports 'admin', 'admin@youtuber.com', 'admin@gmail.com', etc. with password '331025')
     const isValidLocal = (cleanEmail === 'admin' || cleanEmail === 'admin@youtuber.com' || cleanEmail.startsWith('admin')) && (cleanPass === '331025' || cleanPass === 'admin123');
 
     if (isValidLocal) {
       const mockToken = 'static-admin-token-' + Date.now();
       localStorage.setItem('adminToken', mockToken);
+      localStorage.setItem('youtuber_admin_token', mockToken);
       setToken(mockToken);
       return;
     }
@@ -171,6 +188,7 @@ export default function AdminPortal() {
       const json = await res.json();
       if (json.success && json.token) {
         localStorage.setItem('adminToken', json.token);
+        localStorage.setItem('youtuber_admin_token', json.token);
         setToken(json.token);
       } else {
         setAlertMsg({ type: 'danger', text: json.message || 'Invalid username or password.' });
@@ -182,6 +200,7 @@ export default function AdminPortal() {
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
+    localStorage.removeItem('youtuber_admin_token');
     setToken('');
   };
 
@@ -387,9 +406,22 @@ export default function AdminPortal() {
   };
 
   // --- SUBSCRIBER SAVE ---
+  const openEditSubModal = () => {
+    if (dashboardData && dashboardData.subscribers) {
+      setSubForm(dashboardData.subscribers);
+    }
+    setShowSubModal(true);
+  };
+
   const handleSaveSub = async (e) => {
     e.preventDefault();
-    updateStoreLocal('subscribers', subForm);
+    const updatedSub = {
+      ...subForm,
+      count: Number(subForm.count) || 0
+    };
+    updateStoreLocal('subscribers', updatedSub);
+    setSubForm(updatedSub);
+
     try {
       await fetch(`${API_BASE_URL}/api/admin/subscribers`, {
         method: 'PUT',
@@ -397,13 +429,13 @@ export default function AdminPortal() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(subForm)
+        body: JSON.stringify(updatedSub)
       });
     } catch (err) {
       console.warn('API save subscriber warning:', err);
     }
     setShowSubModal(false);
-    alert('Subscriber counter updated!');
+    alert('Subscriber count and settings updated successfully!');
   };
 
   // --- SUPPORT / UPI SAVE ---
@@ -521,15 +553,31 @@ export default function AdminPortal() {
 
           {alertMsg.text && <div className={`alert-box alert-${alertMsg.type}`}>{alertMsg.text}</div>}
 
-          <form onSubmit={handleLogin} autoComplete="on">
+          <form onSubmit={handleLogin} autoComplete="off">
             <div className="form-group">
               <label>Admin Username or Email</label>
-              <input type="text" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required placeholder="admin" />
+              <input
+                type="text"
+                className="form-control"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                placeholder="Enter admin username or email"
+                autoComplete="username"
+              />
             </div>
 
             <div className="form-group">
               <label>Password</label>
-              <input type="password" className="form-control" value={password} onChange={e => setPassword(e.target.value)} required placeholder="331025" />
+              <input
+                type="password"
+                className="form-control"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                placeholder="Enter password"
+                autoComplete="current-password"
+              />
             </div>
 
             <button type="submit" className="btn-admin-primary">Log In to Dashboard</button>
@@ -704,41 +752,92 @@ export default function AdminPortal() {
             </div>
           )}
 
-          {/* 4. SUBSCRIBERS EDITABLE TABLE */}
+          {/* 4. SUBSCRIBERS EDITABLE MANAGER */}
           {activeView === 'subscribers' && (
-            <div className="card">
+            <div className="card" style={{ maxWidth: 700 }}>
               <div className="card-header">
                 <div>
                   <h2 className="card-title"><i className="fa-solid fa-users"></i> Subscriber Counter Settings</h2>
-                  <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Edit live sub count and YouTube API sync settings.</p>
+                  <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Edit live sub count, font style, and YouTube API sync settings.</p>
                 </div>
-                <button className="btn-admin-primary" style={{ width: 'auto' }} onClick={() => setShowSubModal(true)}><i className="fa-solid fa-pen-to-square"></i> Edit Table</button>
+                <button className="btn-admin-primary" style={{ width: 'auto' }} onClick={openEditSubModal}>
+                  <i className="fa-solid fa-pen-to-square"></i> Open Edit Modal
+                </button>
               </div>
 
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Setting Name</th>
-                    <th>Current Value</th>
-                    <th>Type</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>Live Subscriber Count</strong></td>
-                    <td><span style={{ fontSize: '1.2rem', fontWeight: 800 }}>{(subscribers.count || 0).toLocaleString()}</span></td>
-                    <td>Numeric</td>
-                    <td><button className="btn-sm btn-edit" onClick={() => setShowSubModal(true)}><i className="fa-solid fa-pen"></i> Edit</button></td>
-                  </tr>
-                  <tr>
-                    <td><strong>YouTube API Sync</strong></td>
-                    <td>{subscribers.is_api_enabled ? 'Enabled' : 'Disabled'}</td>
-                    <td>Toggle</td>
-                    <td><button className="btn-sm btn-edit" onClick={() => setShowSubModal(true)}><i className="fa-solid fa-sliders"></i> Change</button></td>
-                  </tr>
-                </tbody>
-              </table>
+              <form onSubmit={handleSaveSub} style={{ marginTop: 15 }}>
+                <div className="form-group">
+                  <label>Live Subscriber Count</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={subForm.count !== undefined ? subForm.count : ''}
+                    onChange={e => setSubForm({ ...subForm, count: e.target.value })}
+                    required
+                    placeholder="e.g. 1245890"
+                  />
+                  <small style={{ color: '#64748b', display: 'block', marginTop: 4 }}>
+                    Current formatted count: <strong>{Number(subForm.count || 0).toLocaleString()}</strong>
+                  </small>
+                </div>
+
+                <div className="form-group">
+                  <label>Counter Font Style</label>
+                  <select
+                    className="form-control"
+                    value={subForm.counter_font || "'Bebas Neue', sans-serif"}
+                    onChange={e => setSubForm({ ...subForm, counter_font: e.target.value })}
+                  >
+                    <option value="'Bebas Neue', sans-serif">Bebas Neue (Bold Display)</option>
+                    <option value="'Outfit', sans-serif">Outfit (Clean Geometric)</option>
+                    <option value="'Space Grotesk', sans-serif">Space Grotesk (Tech Modern)</option>
+                    <option value="'Orbitron', sans-serif">Orbitron (Futuristic Gaming)</option>
+                    <option value="'Syne', sans-serif">Syne (Artistic Heavy)</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f8fafc', padding: 12, borderRadius: 10 }}>
+                  <input
+                    type="checkbox"
+                    id="is_api_enabled"
+                    checked={Boolean(subForm.is_api_enabled)}
+                    onChange={e => setSubForm({ ...subForm, is_api_enabled: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  <label htmlFor="is_api_enabled" style={{ margin: 0, textTransform: 'none', color: '#1e293b', fontWeight: 600 }}>
+                    Enable Automatic YouTube API Sync
+                  </label>
+                </div>
+
+                {subForm.is_api_enabled && (
+                  <>
+                    <div className="form-group">
+                      <label>YouTube Channel ID</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={subForm.youtube_channel_id || ''}
+                        onChange={e => setSubForm({ ...subForm, youtube_channel_id: e.target.value })}
+                        placeholder="e.g. UC..."
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>YouTube Data API Key</label>
+                      <input
+                        type="password"
+                        className="form-control"
+                        value={subForm.youtube_api_key || ''}
+                        onChange={e => setSubForm({ ...subForm, youtube_api_key: e.target.value })}
+                        placeholder="e.g. AIzaSy..."
+                      />
+                    </div>
+                  </>
+                )}
+
+                <button type="submit" className="btn-admin-primary" style={{ marginTop: 10 }}>
+                  <i className="fa-solid fa-floppy-disk"></i> Save Subscriber Settings
+                </button>
+              </form>
             </div>
           )}
 
