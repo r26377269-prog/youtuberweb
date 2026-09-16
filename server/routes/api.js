@@ -39,8 +39,8 @@ const getPublicData = async (req, res) => {
     if (!settings || !settings.creator_name) settings = local.settings || settings || {};
     if (streams.length === 0) streams = local.streams || [];
     if (videos.length === 0) videos = (local.videos || []).filter(v => v.status === 'published');
-    if (!subscribers || subscribers.count === undefined || subscribers.count === null) {
-      subscribers = (local.subscribers && local.subscribers.count !== undefined) ? local.subscribers : { count: 1245890, is_api_enabled: false };
+    if (!subscribers) {
+      subscribers = (local.subscribers && local.subscribers.count !== undefined) ? local.subscribers : { count: 0, is_api_enabled: false };
     }
     if (!support || !support.upi_id) support = local.support_settings || support || {};
     if (socials.length === 0) socials = (local.social_links || []).filter(s => s.is_active);

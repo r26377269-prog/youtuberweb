@@ -173,7 +173,7 @@ router.get('/dashboard-data', authenticateAdmin, async (req, res) => {
     if (!settings.creator_name) settings = local.settings || settings;
     if (streams.length === 0) streams = local.streams || [];
     if (videos.length === 0) videos = local.videos || [];
-    if (!subscribers.count) subscribers = local.subscribers || subscribers;
+    if (!subscribers || !subscribers.id) subscribers = local.subscribers || subscribers;
     if (!support.upi_id) support = local.support_settings || support;
     if (socials.length === 0) socials = local.social_links || [];
 
