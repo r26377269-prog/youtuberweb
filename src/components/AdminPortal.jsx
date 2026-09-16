@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/admin.css';
-import { supabase, fetchAllSiteDataFromSupabase } from '../lib/supabaseClient';
+import { supabase, fetchAllSiteDataFromSupabase, mergeWithUserPriority } from '../lib/supabaseClient';
 
 const API_BASE_URL = '';
 
@@ -109,6 +109,24 @@ export default function AdminPortal() {
     });
   };
 
+  const updateStoreLocal = (sectionKey, updateFn) => {
+    setDashboardData(prev => {
+      const current = prev || { settings: {}, streams: [], videos: [], subscribers: {}, support: {}, socials: [] };
+      const updatedSection = typeof updateFn === 'function' ? updateFn(current[sectionKey]) : updateFn;
+      if (typeof updatedSection === 'object' && updatedSection !== null && !Array.isArray(updatedSection)) {
+        updatedSection._userEdited = true;
+      }
+      const merged = {
+        ...current,
+        [sectionKey]: updatedSection,
+        [`_${sectionKey}UserEdited`]: true,
+        _lastUpdated: Date.now()
+      };
+      localStorage.setItem('youtuber_site_data', JSON.stringify(merged));
+      return merged;
+    });
+  };
+
   const loadDashboard = async () => {
     let localCache = {};
     const cached = localStorage.getItem('youtuber_site_data');
@@ -118,14 +136,7 @@ export default function AdminPortal() {
 
     const applyMergedDashboard = (incomingData) => {
       if (!incomingData) return localCache;
-      const merged = {
-        settings: (incomingData.settings && Object.keys(incomingData.settings).length > 0) ? { ...localCache.settings, ...incomingData.settings } : (localCache.settings || {}),
-        streams: (Array.isArray(incomingData.streams) && incomingData.streams.length > 0) ? incomingData.streams : (localCache.streams || []),
-        videos: (Array.isArray(incomingData.videos) && incomingData.videos.length > 0) ? incomingData.videos : (localCache.videos || []),
-        subscribers: (incomingData.subscribers && incomingData.subscribers.count !== undefined) ? { ...localCache.subscribers, ...incomingData.subscribers } : (localCache.subscribers || {}),
-        support: (incomingData.support && (incomingData.support.upi_id || incomingData.support.creator_name)) ? { ...localCache.support, ...incomingData.support } : (localCache.support || {}),
-        socials: (Array.isArray(incomingData.socials) && incomingData.socials.length > 0) ? incomingData.socials : (localCache.socials || [])
-      };
+      const merged = mergeWithUserPriority(localCache, incomingData);
       localStorage.setItem('youtuber_site_data', JSON.stringify(merged));
       return merged;
     };
@@ -263,16 +274,6 @@ export default function AdminPortal() {
       console.error('Upload failed warning:', err);
     }
     return base64Url;
-  };
-
-  const updateStoreLocal = (sectionKey, updateFn) => {
-    setDashboardData(prev => {
-      const current = prev || { settings: {}, streams: [], videos: [], subscribers: {}, support: {}, socials: [] };
-      const updatedSection = typeof updateFn === 'function' ? updateFn(current[sectionKey]) : updateFn;
-      const merged = { ...current, [sectionKey]: updatedSection };
-      localStorage.setItem('youtuber_site_data', JSON.stringify(merged));
-      return merged;
-    });
   };
 
   // --- STREAMS CRUD ---

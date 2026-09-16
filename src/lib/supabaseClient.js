@@ -7,6 +7,48 @@ export const supabase = (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
+export const isDefaultSupport = (sup) => !sup || !sup.upi_id || sup.upi_id === 'creator@upi' || sup.upi_id.includes('fam_2f43d815507f5ee1714a857d7454c93c7e6e661e');
+export const isDefaultSettings = (st) => !st || st.creator_name === 'ALEX VANCE';
+
+export const mergeWithUserPriority = (existing, incoming) => {
+  if (!incoming) return existing || {};
+  if (!existing || Object.keys(existing).length === 0) return incoming;
+
+  const mergedSettings = (existing.settings && !isDefaultSettings(existing.settings))
+    ? { ...incoming.settings, ...existing.settings }
+    : { ...(existing.settings || {}), ...(incoming.settings || {}) };
+
+  const mergedSupport = (existing.support && !isDefaultSupport(existing.support))
+    ? { ...incoming.support, ...existing.support }
+    : { ...(existing.support || {}), ...(incoming.support || {}) };
+
+  const mergedSubscribers = (existing.subscribers && existing.subscribers._userEdited)
+    ? { ...incoming.subscribers, ...existing.subscribers }
+    : { ...(existing.subscribers || {}), ...(incoming.subscribers || {}) };
+
+  const mergedStreams = (Array.isArray(existing.streams) && existing.streams.length > 0 && existing._streamsUserEdited)
+    ? existing.streams
+    : (Array.isArray(incoming.streams) && incoming.streams.length > 0 ? incoming.streams : (existing.streams || []));
+
+  const mergedVideos = (Array.isArray(existing.videos) && existing.videos.length > 0 && existing._videosUserEdited)
+    ? existing.videos
+    : (Array.isArray(incoming.videos) && incoming.videos.length > 0 ? incoming.videos : (existing.videos || []));
+
+  const mergedSocials = (Array.isArray(existing.socials) && existing.socials.length > 0 && existing._socialsUserEdited)
+    ? existing.socials
+    : (Array.isArray(incoming.socials) && incoming.socials.length > 0 ? incoming.socials : (existing.socials || []));
+
+  return {
+    ...existing,
+    settings: mergedSettings,
+    support: mergedSupport,
+    subscribers: mergedSubscribers,
+    streams: mergedStreams,
+    videos: mergedVideos,
+    socials: mergedSocials
+  };
+};
+
 export const fetchAllSiteDataFromSupabase = async () => {
   if (!supabase) return null;
   try {

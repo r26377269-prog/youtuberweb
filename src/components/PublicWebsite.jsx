@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import Lenis from '@studio-freight/lenis';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { fetchAllSiteDataFromSupabase } from '../lib/supabaseClient';
+import { fetchAllSiteDataFromSupabase, mergeWithUserPriority } from '../lib/supabaseClient';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -91,14 +91,7 @@ export default function PublicWebsite() {
           } catch(e){}
         }
 
-        const merged = {
-          settings: (newData.settings && Object.keys(newData.settings).length > 0) ? { ...existing.settings, ...newData.settings } : (existing.settings || {}),
-          streams: (Array.isArray(newData.streams) && newData.streams.length > 0) ? newData.streams : (existing.streams || []),
-          videos: (Array.isArray(newData.videos) && newData.videos.length > 0) ? newData.videos : (existing.videos || []),
-          subscribers: (newData.subscribers && newData.subscribers.count !== undefined) ? { ...existing.subscribers, ...newData.subscribers } : (existing.subscribers || {}),
-          support: (newData.support && (newData.support.upi_id || newData.support.creator_name)) ? { ...existing.support, ...newData.support } : (existing.support || {}),
-          socials: (Array.isArray(newData.socials) && newData.socials.length > 0) ? newData.socials : (existing.socials || [])
-        };
+        const merged = mergeWithUserPriority(existing, newData);
 
         localStorage.setItem('youtuber_site_data', JSON.stringify(merged));
         if (merged.subscribers && merged.subscribers.count !== undefined) {
