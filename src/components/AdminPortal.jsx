@@ -36,6 +36,15 @@ export default function AdminPortal() {
   const [dashboardData, setDashboardData] = useState(null);
   const [alertMsg, setAlertMsg] = useState({ type: '', text: '' });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [toast, setToast] = useState({ show: false, text: '', type: 'success' });
+  const [isSaving, setIsSaving] = useState(false);
+
+  const showToast = (text, type = 'success') => {
+    setToast({ show: true, text, type });
+    setTimeout(() => {
+      setToast({ show: false, text: '', type: 'success' });
+    }, 4000);
+  };
 
   const handleNavClick = (view) => {
     setActiveView(view);
@@ -270,6 +279,27 @@ export default function AdminPortal() {
 
   const handleSaveStream = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
+
+    const newStream = {
+      id: editStreamId || 'stream-' + Date.now(),
+      ...streamForm,
+      created_at: new Date().toISOString()
+    };
+
+    setDashboardData(prev => {
+      const current = prev || {};
+      const list = Array.isArray(current.streams) ? [...current.streams] : [];
+      if (editStreamId) {
+        const idx = list.findIndex(s => s.id.toString() === editStreamId.toString());
+        if (idx !== -1) list[idx] = newStream;
+        else list.unshift(newStream);
+      } else {
+        list.unshift(newStream);
+      }
+      return { ...current, streams: list };
+    });
+
     try {
       await saveStreamToSupabase(streamForm, editStreamId);
     } catch (err) {
@@ -291,12 +321,18 @@ export default function AdminPortal() {
       console.warn('API save stream warning:', err);
     }
 
+    setIsSaving(false);
     setShowStreamModal(false);
-    await loadDashboard();
+    showToast(editStreamId ? '✨ Stream updated successfully!' : '🎉 New Stream added successfully!');
   };
 
   const deleteStream = async (id) => {
     if (!window.confirm('Delete this stream entry?')) return;
+    setDashboardData(prev => ({
+      ...(prev || {}),
+      streams: (Array.isArray(prev?.streams) ? prev.streams : []).filter(s => s.id.toString() !== id.toString())
+    }));
+
     try {
       await deleteStreamFromSupabase(id);
     } catch (err) {
@@ -311,8 +347,7 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API delete stream warning:', err);
     }
-
-    await loadDashboard();
+    showToast('🗑️ Stream entry deleted!');
   };
 
   // --- VIDEOS CRUD ---
@@ -337,6 +372,28 @@ export default function AdminPortal() {
 
   const handleSaveVideo = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
+
+    const newVid = {
+      id: editVideoId || 'vid-' + Date.now(),
+      ...videoForm,
+      status: 'published',
+      created_at: new Date().toISOString()
+    };
+
+    setDashboardData(prev => {
+      const current = prev || {};
+      const list = Array.isArray(current.videos) ? [...current.videos] : [];
+      if (editVideoId) {
+        const idx = list.findIndex(v => v.id.toString() === editVideoId.toString());
+        if (idx !== -1) list[idx] = newVid;
+        else list.unshift(newVid);
+      } else {
+        list.unshift(newVid);
+      }
+      return { ...current, videos: list };
+    });
+
     try {
       await saveVideoToSupabase(videoForm, editVideoId);
     } catch (err) {
@@ -358,11 +415,17 @@ export default function AdminPortal() {
       console.warn('API save video warning:', err);
     }
 
+    setIsSaving(false);
     setShowVideoModal(false);
-    await loadDashboard();
+    showToast(editVideoId ? '✨ Video updated successfully!' : '🎉 New Video added successfully!');
   };
 
   const toggleTrending = async (vidId, currentStatus) => {
+    setDashboardData(prev => ({
+      ...(prev || {}),
+      videos: (Array.isArray(prev?.videos) ? prev.videos : []).map(v => v.id.toString() === vidId.toString() ? { ...v, is_trending: !currentStatus } : v)
+    }));
+
     try {
       await toggleTrendingVideoInSupabase(vidId, currentStatus);
     } catch (err) {
@@ -381,12 +444,16 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API toggle trending warning:', err);
     }
-
-    await loadDashboard();
+    showToast(!currentStatus ? '🔥 Video marked as Trending!' : 'Updated Trending status!');
   };
 
   const deleteVideo = async (id) => {
     if (!window.confirm('Delete this video entry?')) return;
+    setDashboardData(prev => ({
+      ...(prev || {}),
+      videos: (Array.isArray(prev?.videos) ? prev.videos : []).filter(v => v.id.toString() !== id.toString())
+    }));
+
     try {
       await deleteVideoFromSupabase(id);
     } catch (err) {
@@ -401,8 +468,7 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API delete video warning:', err);
     }
-
-    await loadDashboard();
+    showToast('🗑️ Video entry deleted!');
   };
 
   // --- SUBSCRIBER SAVE ---
@@ -415,10 +481,16 @@ export default function AdminPortal() {
 
   const handleSaveSub = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
     const updatedSub = {
       ...subForm,
       count: Number(subForm.count) || 0
     };
+
+    setDashboardData(prev => ({
+      ...(prev || {}),
+      subscribers: updatedSub
+    }));
 
     try {
       await saveSubscribersToSupabase(updatedSub);
@@ -441,14 +513,20 @@ export default function AdminPortal() {
       }
     }
 
+    setIsSaving(false);
     setShowSubModal(false);
-    alert(`✅ Subscriber count updated to ${updatedSub.count}!`);
-    await loadDashboard();
+    showToast(`✅ Subscriber count updated to ${updatedSub.count.toLocaleString()}!`);
   };
 
   // --- SUPPORT / UPI SAVE ---
   const handleSaveSupport = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
+    setDashboardData(prev => ({
+      ...(prev || {}),
+      support: supportForm
+    }));
+
     try {
       await saveSupportToSupabase(supportForm);
     } catch (err) {
@@ -468,13 +546,14 @@ export default function AdminPortal() {
       console.warn('API save support warning:', err);
     }
 
-    alert('Support / UPI settings saved to database!');
-    await loadDashboard();
+    setIsSaving(false);
+    showToast('✅ Support & UPI settings saved successfully!');
   };
 
   // --- WEBSITE SETTINGS SAVE ---
   const handleSaveSettings = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
     const rawTyping = settingsForm.hero_typing_texts;
     const typingList = typeof rawTyping === 'string' ? rawTyping.split(',').map(s => s.trim()).filter(Boolean) : rawTyping;
 
@@ -482,6 +561,11 @@ export default function AdminPortal() {
       ...settingsForm,
       hero_typing_texts: typingList
     };
+
+    setDashboardData(prev => ({
+      ...(prev || {}),
+      settings: payload
+    }));
 
     try {
       await saveSettingsToSupabase(payload);
@@ -502,13 +586,25 @@ export default function AdminPortal() {
       console.warn('API save settings warning:', err);
     }
 
-    alert('Website settings updated successfully in database!');
-    await loadDashboard();
+    setIsSaving(false);
+    showToast('✅ Website settings updated successfully!');
   };
 
   // --- SOCIALS CRUD ---
   const handleAddSocial = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
+    const newSocial = {
+      id: 's-' + Date.now(),
+      ...socialForm,
+      is_active: true
+    };
+
+    setDashboardData(prev => ({
+      ...(prev || {}),
+      socials: [...(Array.isArray(prev?.socials) ? prev.socials : []), newSocial]
+    }));
+
     try {
       await addSocialToSupabase(socialForm);
     } catch (err) {
@@ -528,13 +624,19 @@ export default function AdminPortal() {
       console.warn('API add social warning:', err);
     }
 
+    setIsSaving(false);
     setShowSocialModal(false);
     setSocialForm({ platform: '', url: '', icon_class: 'fa-brands fa-youtube' });
-    await loadDashboard();
+    showToast('🎉 Social Link added successfully!');
   };
 
   const deleteSocial = async (id) => {
     if (!window.confirm('Delete social link?')) return;
+    setDashboardData(prev => ({
+      ...(prev || {}),
+      socials: (Array.isArray(prev?.socials) ? prev.socials : []).filter(s => s.id.toString() !== id.toString())
+    }));
+
     try {
       await deleteSocialFromSupabase(id);
     } catch (err) {
@@ -549,8 +651,7 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API delete social warning:', err);
     }
-
-    await loadDashboard();
+    showToast('🗑️ Social link deleted!');
   };
 
   // --- CHANGE PASSWORD ---
@@ -621,6 +722,16 @@ export default function AdminPortal() {
 
   return (
     <div className="admin-body">
+      {/* ANIMATED TOAST NOTIFICATION */}
+      {toast.show && (
+        <div className="admin-toast-container">
+          <div className={`admin-toast admin-toast-${toast.type}`}>
+            <i className={toast.type === 'success' ? "fa-solid fa-circle-check" : "fa-solid fa-triangle-exclamation"}></i>
+            <span>{toast.text}</span>
+          </div>
+        </div>
+      )}
+
       <div className="dashboard-layout">
         {/* SIDEBAR NAVIGATION */}
         {isMobileMenuOpen && (
@@ -877,8 +988,8 @@ export default function AdminPortal() {
                   </>
                 )}
 
-                <button type="submit" className="btn-admin-primary" style={{ marginTop: 10 }}>
-                  <i className="fa-solid fa-floppy-disk"></i> Save Subscriber Settings
+                <button type="submit" className="btn-admin-primary" style={{ marginTop: 10 }} disabled={isSaving}>
+                  {isSaving ? <><span className="btn-spinner"></span> Saving...</> : <><i className="fa-solid fa-floppy-disk"></i> Save Subscriber Settings</>}
                 </button>
               </form>
             </div>
@@ -935,7 +1046,9 @@ export default function AdminPortal() {
                     </div>
                   )}
                 </div>
-                <button type="submit" className="btn-admin-primary">Save Support & Paytm Gateway Settings</button>
+                <button type="submit" className="btn-admin-primary" disabled={isSaving}>
+                  {isSaving ? <><span className="btn-spinner"></span> Saving...</> : 'Save Support & Paytm Gateway Settings'}
+                </button>
               </form>
             </div>
           )}
@@ -1018,7 +1131,9 @@ export default function AdminPortal() {
                   <label>About Creator Bio Text</label>
                   <textarea className="form-control" rows="4" value={settingsForm.about_text || ''} onChange={e => setSettingsForm({ ...settingsForm, about_text: e.target.value })}></textarea>
                 </div>
-                <button type="submit" className="btn-admin-primary">Save Website Settings</button>
+                <button type="submit" className="btn-admin-primary" disabled={isSaving}>
+                  {isSaving ? <><span className="btn-spinner"></span> Saving...</> : 'Save Website Settings'}
+                </button>
               </form>
             </div>
           )}
@@ -1099,7 +1214,9 @@ export default function AdminPortal() {
                 )}
               </div>
               <div style={{ display: 'flex', gap: 15, marginTop: 25 }}>
-                <button type="submit" className="btn-admin-primary">Save Stream</button>
+                <button type="submit" className="btn-admin-primary" disabled={isSaving}>
+                  {isSaving ? <><span className="btn-spinner"></span> Saving...</> : 'Save Stream'}
+                </button>
                 <button type="button" className="btn-sm btn-delete" onClick={() => setShowStreamModal(false)}>Cancel</button>
               </div>
             </form>
@@ -1151,7 +1268,9 @@ export default function AdminPortal() {
                 <label style={{ margin: 0, textTransform: 'none', color: '#c2410c', fontWeight: 700 }}>🔥 Mark as Trending Video</label>
               </div>
               <div style={{ display: 'flex', gap: 15, marginTop: 25 }}>
-                <button type="submit" className="btn-admin-primary">Save Video</button>
+                <button type="submit" className="btn-admin-primary" disabled={isSaving}>
+                  {isSaving ? <><span className="btn-spinner"></span> Saving...</> : 'Save Video'}
+                </button>
                 <button type="button" className="btn-sm btn-delete" onClick={() => setShowVideoModal(false)}>Cancel</button>
               </div>
             </form>

@@ -77,39 +77,63 @@ export const saveStreamToSupabase = async (streamData, editId) => {
   const payload = {
     title: streamData.title,
     description: streamData.description || '',
-    thumbnail_url: streamData.thumbnail_url || '',
+    thumbnail_url: streamData.thumbnail_url || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
     scheduled_date: streamData.scheduled_date || new Date().toISOString().split('T')[0],
     scheduled_time: streamData.scheduled_time || '19:00',
     youtube_url: streamData.youtube_url || '',
     status: streamData.status || 'UPCOMING'
   };
 
-  if (editId) {
-    const { data, error } = await supabase
-      .from('streams')
-      .update(payload)
-      .eq('id', editId)
-      .select();
-    if (error) console.warn('[Supabase saveStream update error]:', error.message);
-    return data;
-  } else {
-    const { data, error } = await supabase
-      .from('streams')
-      .insert([{ ...payload, created_at: new Date().toISOString() }])
-      .select();
-    if (error) console.warn('[Supabase saveStream insert error]:', error.message);
-    return data;
+  try {
+    if (editId) {
+      const numId = Number(editId);
+      const targetId = !isNaN(numId) ? numId : editId;
+
+      let { data, error } = await supabase
+        .from('streams')
+        .update(payload)
+        .eq('id', targetId)
+        .select();
+
+      if (error || !data || data.length === 0) {
+        const insertObj = typeof targetId === 'number' ? { id: targetId, ...payload } : { ...payload };
+        const { data: upsertData, error: upsertErr } = await supabase
+          .from('streams')
+          .upsert([insertObj])
+          .select();
+        if (upsertErr) console.warn('[Supabase saveStream upsert warning]:', upsertErr.message);
+        return upsertData;
+      }
+      return data;
+    } else {
+      const { data, error } = await supabase
+        .from('streams')
+        .insert([{ ...payload, created_at: new Date().toISOString() }])
+        .select();
+      if (error) console.warn('[Supabase saveStream insert warning]:', error.message);
+      return data;
+    }
+  } catch (err) {
+    console.warn('[Supabase saveStream Exception]:', err);
+    return null;
   }
 };
 
 export const deleteStreamFromSupabase = async (streamId) => {
   if (!supabase) return null;
-  const { data, error } = await supabase
-    .from('streams')
-    .delete()
-    .eq('id', streamId);
-  if (error) console.warn('[Supabase deleteStream error]:', error.message);
-  return data;
+  try {
+    const numId = Number(streamId);
+    const targetId = !isNaN(numId) ? numId : streamId;
+    const { data, error } = await supabase
+      .from('streams')
+      .delete()
+      .eq('id', targetId);
+    if (error) console.warn('[Supabase deleteStream error]:', error.message);
+    return data;
+  } catch (err) {
+    console.warn('[Supabase deleteStream Exception]:', err);
+    return null;
+  }
 };
 
 export const saveVideoToSupabase = async (videoData, editId) => {
@@ -118,49 +142,80 @@ export const saveVideoToSupabase = async (videoData, editId) => {
     title: videoData.title,
     description: videoData.description || '',
     youtube_url: videoData.youtube_url || '',
-    thumbnail_url: videoData.thumbnail_url || '',
+    thumbnail_url: videoData.thumbnail_url || 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=800&q=80',
     category: videoData.category || 'Gaming',
     status: videoData.status || 'published',
     is_trending: Boolean(videoData.is_trending)
   };
 
-  if (editId) {
-    const { data, error } = await supabase
-      .from('videos')
-      .update(payload)
-      .eq('id', editId)
-      .select();
-    if (error) console.warn('[Supabase saveVideo update error]:', error.message);
-    return data;
-  } else {
-    const { data, error } = await supabase
-      .from('videos')
-      .insert([{ ...payload, created_at: new Date().toISOString() }])
-      .select();
-    if (error) console.warn('[Supabase saveVideo insert error]:', error.message);
-    return data;
+  try {
+    if (editId) {
+      const numId = Number(editId);
+      const targetId = !isNaN(numId) ? numId : editId;
+
+      let { data, error } = await supabase
+        .from('videos')
+        .update(payload)
+        .eq('id', targetId)
+        .select();
+
+      if (error || !data || data.length === 0) {
+        const insertObj = typeof targetId === 'number' ? { id: targetId, ...payload } : { ...payload };
+        const { data: upsertData, error: upsertErr } = await supabase
+          .from('videos')
+          .upsert([insertObj])
+          .select();
+        if (upsertErr) console.warn('[Supabase saveVideo upsert warning]:', upsertErr.message);
+        return upsertData;
+      }
+      return data;
+    } else {
+      const { data, error } = await supabase
+        .from('videos')
+        .insert([{ ...payload, created_at: new Date().toISOString() }])
+        .select();
+      if (error) console.warn('[Supabase saveVideo insert warning]:', error.message);
+      return data;
+    }
+  } catch (err) {
+    console.warn('[Supabase saveVideo Exception]:', err);
+    return null;
   }
 };
 
 export const toggleTrendingVideoInSupabase = async (vidId, currentStatus) => {
   if (!supabase) return null;
-  const { data, error } = await supabase
-    .from('videos')
-    .update({ is_trending: !currentStatus })
-    .eq('id', vidId)
-    .select();
-  if (error) console.warn('[Supabase toggleTrending error]:', error.message);
-  return data;
+  try {
+    const numId = Number(vidId);
+    const targetId = !isNaN(numId) ? numId : vidId;
+    const { data, error } = await supabase
+      .from('videos')
+      .update({ is_trending: !currentStatus })
+      .eq('id', targetId)
+      .select();
+    if (error) console.warn('[Supabase toggleTrending error]:', error.message);
+    return data;
+  } catch (err) {
+    console.warn('[Supabase toggleTrending Exception]:', err);
+    return null;
+  }
 };
 
 export const deleteVideoFromSupabase = async (vidId) => {
   if (!supabase) return null;
-  const { data, error } = await supabase
-    .from('videos')
-    .delete()
-    .eq('id', vidId);
-  if (error) console.warn('[Supabase deleteVideo error]:', error.message);
-  return data;
+  try {
+    const numId = Number(vidId);
+    const targetId = !isNaN(numId) ? numId : vidId;
+    const { data, error } = await supabase
+      .from('videos')
+      .delete()
+      .eq('id', targetId);
+    if (error) console.warn('[Supabase deleteVideo error]:', error.message);
+    return data;
+  } catch (err) {
+    console.warn('[Supabase deleteVideo Exception]:', err);
+    return null;
+  }
 };
 
 export const saveSubscribersToSupabase = async (subData) => {
@@ -174,12 +229,17 @@ export const saveSubscribersToSupabase = async (subData) => {
     youtube_api_key: subData.youtube_api_key || '',
     updated_at: new Date().toISOString()
   };
-  const { data, error } = await supabase
-    .from('subscribers')
-    .upsert(upsertData, { onConflict: 'id' })
-    .select();
-  if (error) console.warn('[Supabase saveSubscribers error]:', error.message);
-  return data;
+  try {
+    const { data, error } = await supabase
+      .from('subscribers')
+      .upsert(upsertData, { onConflict: 'id' })
+      .select();
+    if (error) console.warn('[Supabase saveSubscribers error]:', error.message);
+    return data;
+  } catch (err) {
+    console.warn('[Supabase saveSubscribers Exception]:', err);
+    return null;
+  }
 };
 
 export const saveSupportToSupabase = async (supportData) => {
@@ -193,12 +253,17 @@ export const saveSupportToSupabase = async (supportData) => {
     support_message: supportData.support_message || '',
     updated_at: new Date().toISOString()
   };
-  const { data, error } = await supabase
-    .from('support_settings')
-    .upsert(upsertData, { onConflict: 'id' })
-    .select();
-  if (error) console.warn('[Supabase saveSupport error]:', error.message);
-  return data;
+  try {
+    const { data, error } = await supabase
+      .from('support_settings')
+      .upsert(upsertData, { onConflict: 'id' })
+      .select();
+    if (error) console.warn('[Supabase saveSupport error]:', error.message);
+    return data;
+  } catch (err) {
+    console.warn('[Supabase saveSupport Exception]:', err);
+    return null;
+  }
 };
 
 export const saveSettingsToSupabase = async (settingsData) => {
@@ -215,12 +280,17 @@ export const saveSettingsToSupabase = async (settingsData) => {
     about_text: settingsData.about_text || '',
     updated_at: new Date().toISOString()
   };
-  const { data, error } = await supabase
-    .from('settings')
-    .upsert(upsertData, { onConflict: 'id' })
-    .select();
-  if (error) console.warn('[Supabase saveSettings error]:', error.message);
-  return data;
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .upsert(upsertData, { onConflict: 'id' })
+      .select();
+    if (error) console.warn('[Supabase saveSettings error]:', error.message);
+    return data;
+  } catch (err) {
+    console.warn('[Supabase saveSettings Exception]:', err);
+    return null;
+  }
 };
 
 export const addSocialToSupabase = async (socialData) => {
@@ -232,20 +302,32 @@ export const addSocialToSupabase = async (socialData) => {
     is_active: true,
     sort_order: Number(socialData.sort_order) || 0
   };
-  const { data, error } = await supabase
-    .from('social_links')
-    .insert([payload])
-    .select();
-  if (error) console.warn('[Supabase addSocial error]:', error.message);
-  return data;
+  try {
+    const { data, error } = await supabase
+      .from('social_links')
+      .insert([payload])
+      .select();
+    if (error) console.warn('[Supabase addSocial error]:', error.message);
+    return data;
+  } catch (err) {
+    console.warn('[Supabase addSocial Exception]:', err);
+    return null;
+  }
 };
 
 export const deleteSocialFromSupabase = async (socialId) => {
   if (!supabase) return null;
-  const { data, error } = await supabase
-    .from('social_links')
-    .delete()
-    .eq('id', socialId);
-  if (error) console.warn('[Supabase deleteSocial error]:', error.message);
-  return data;
+  try {
+    const numId = Number(socialId);
+    const targetId = !isNaN(numId) ? numId : socialId;
+    const { data, error } = await supabase
+      .from('social_links')
+      .delete()
+      .eq('id', targetId);
+    if (error) console.warn('[Supabase deleteSocial error]:', error.message);
+    return data;
+  } catch (err) {
+    console.warn('[Supabase deleteSocial Exception]:', err);
+    return null;
+  }
 };

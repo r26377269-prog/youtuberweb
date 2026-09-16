@@ -233,6 +233,7 @@ router.put('/streams/:id', authenticateAdmin, async (req, res) => {
   try {
     const streamId = req.params.id;
     const { title, description, thumbnail_url, scheduled_date, scheduled_time, youtube_url, status } = req.body;
+    const targetId = (!isNaN(streamId) && String(streamId).trim() !== '') ? Number(streamId) : streamId;
 
     const local = readLocalDb();
     const index = (local.streams || []).findIndex(s => s.id.toString() === streamId.toString());
@@ -252,10 +253,17 @@ router.put('/streams/:id', authenticateAdmin, async (req, res) => {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase
+        const payload = { title, description, thumbnail_url, scheduled_date, scheduled_time, youtube_url, status };
+        let { data, error } = await supabase
           .from('streams')
-          .update({ title, description, thumbnail_url, scheduled_date, scheduled_time, youtube_url, status })
-          .eq('id', streamId);
+          .update(payload)
+          .eq('id', targetId)
+          .select();
+        
+        if (error || !data || data.length === 0) {
+          const insertObj = typeof targetId === 'number' ? { id: targetId, ...payload } : payload;
+          await supabase.from('streams').upsert([insertObj]);
+        }
       } catch (err) {
         console.warn('Supabase stream update warning:', err.message);
       }
@@ -336,6 +344,7 @@ router.put('/videos/:id', authenticateAdmin, async (req, res) => {
   try {
     const vidId = req.params.id;
     const { title, description, youtube_url, thumbnail_url, category, status, is_trending } = req.body;
+    const targetId = (!isNaN(vidId) && String(vidId).trim() !== '') ? Number(vidId) : vidId;
 
     const local = readLocalDb();
     const index = (local.videos || []).findIndex(v => v.id.toString() === vidId.toString());
@@ -357,7 +366,17 @@ router.put('/videos/:id', authenticateAdmin, async (req, res) => {
       try {
         const updateData = { title, description, youtube_url, thumbnail_url, category, status };
         if (is_trending !== undefined) updateData.is_trending = Boolean(is_trending);
-        await supabase.from('videos').update(updateData).eq('id', vidId);
+        
+        let { data, error } = await supabase
+          .from('videos')
+          .update(updateData)
+          .eq('id', targetId)
+          .select();
+        
+        if (error || !data || data.length === 0) {
+          const insertObj = typeof targetId === 'number' ? { id: targetId, ...updateData } : updateData;
+          await supabase.from('videos').upsert([insertObj]);
+        }
       } catch (err) {
         console.warn('Supabase video update warning:', err.message);
       }
