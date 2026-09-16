@@ -10,6 +10,7 @@ export default function PublicWebsite() {
   const [data, setData] = useState(null);
   const [typingText, setTypingText] = useState('');
   const [navScrolled, setNavScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [displayCount, setDisplayCount] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [activeSection, setActiveSection] = useState('home');
@@ -417,6 +418,9 @@ export default function PublicWebsite() {
       {/* FLOATING SPOTLIGHT BEAM NAVBAR (MATCHING REFERENCE IMAGE) */}
       <div className={`nav-capsule-wrapper ${navScrolled ? 'scrolled' : ''}`}>
         <nav className="nav-spotlight-bar">
+          <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
+            <i className="fa-solid fa-bars"></i>
+          </button>
           {/* BRAND PILL LEFT */}
           <a href="#home" className="nav-brand-pill">
             <img 
@@ -490,6 +494,22 @@ export default function PublicWebsite() {
             </a>
           </div>
         </nav>
+        {isMobileMenuOpen && (
+          <div className="mobile-nav-overlay" onClick={() => setIsMobileMenuOpen(false)}>
+            <div className="mobile-nav-links" onClick={e => e.stopPropagation()}>
+              <button className="mobile-close-btn" onClick={() => setIsMobileMenuOpen(false)}>
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+              <a href="#home" className="nav-spotlight-item" onClick={() => { setActiveSection('home'); setIsMobileMenuOpen(false); }}><i className="fa-solid fa-house"></i> Home</a>
+              <a href="#streams" className="nav-spotlight-item" onClick={() => { setActiveSection('streams'); setIsMobileMenuOpen(false); }}><i className="fa-solid fa-tower-broadcast"></i> Live Streams</a>
+              <a href="#videos" className="nav-spotlight-item" onClick={() => { setActiveSection('videos'); setIsMobileMenuOpen(false); }}><i className="fa-solid fa-play"></i> Videos</a>
+              <a href="#about" className="nav-spotlight-item" onClick={() => { setActiveSection('about'); setIsMobileMenuOpen(false); }}><i className="fa-solid fa-user"></i> About</a>
+              <a href="#support" className="nav-spotlight-item" onClick={() => { setActiveSection('support'); setIsMobileMenuOpen(false); }}><i className="fa-solid fa-heart"></i> Support Us</a>
+              <div style={{ borderTop: '1.5px solid rgba(56, 189, 248, 0.25)', margin: '8px 0' }}></div>
+              <a href="/admin" className="nav-spotlight-item" style={{ color: '#0284c7', fontWeight: 800 }}><i className="fa-solid fa-lock"></i> Admin Portal</a>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* HERO SECTION */}

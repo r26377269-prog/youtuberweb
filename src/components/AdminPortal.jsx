@@ -20,6 +20,12 @@ export default function AdminPortal() {
   const [activeView, setActiveView] = useState('overview');
   const [dashboardData, setDashboardData] = useState(null);
   const [alertMsg, setAlertMsg] = useState({ type: '', text: '' });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleNavClick = (view) => {
+    setActiveView(view);
+    setIsMobileMenuOpen(false);
+  };
 
   // Login Form State (Empty by default for security)
   const [email, setEmail] = useState('');
@@ -631,20 +637,28 @@ export default function AdminPortal() {
     <div className="admin-body">
       <div className="dashboard-layout">
         {/* SIDEBAR NAVIGATION */}
-        <aside className="sidebar">
+        {isMobileMenuOpen && (
+          <div className="sidebar-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
+        )}
+        <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
           <div className="sidebar-header">
-            <h2><i className="fa-solid fa-shield-halved"></i> ADMIN PORTAL</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2><i className="fa-solid fa-shield-halved"></i> ADMIN PORTAL</h2>
+              <button className="mobile-close-btn" onClick={() => setIsMobileMenuOpen(false)}>
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
           </div>
 
           <ul className="sidebar-menu">
-            <li><button className={activeView === 'overview' ? 'active' : ''} onClick={() => setActiveView('overview')}><i className="fa-solid fa-chart-line"></i> Overview</button></li>
-            <li><button className={activeView === 'streams' ? 'active' : ''} onClick={() => setActiveView('streams')}><i className="fa-solid fa-tower-cell"></i> Live Streams</button></li>
-            <li><button className={activeView === 'videos' ? 'active' : ''} onClick={() => setActiveView('videos')}><i className="fa-brands fa-youtube"></i> Videos</button></li>
-            <li><button className={activeView === 'subscribers' ? 'active' : ''} onClick={() => setActiveView('subscribers')}><i className="fa-solid fa-users"></i> Subscribers</button></li>
-            <li><button className={activeView === 'support' ? 'active' : ''} onClick={() => setActiveView('support')}><i className="fa-solid fa-qrcode"></i> Support / UPI</button></li>
-            <li><button className={activeView === 'socials' ? 'active' : ''} onClick={() => setActiveView('socials')}><i className="fa-solid fa-share-nodes"></i> Social Links</button></li>
-            <li><button className={activeView === 'settings' ? 'active' : ''} onClick={() => setActiveView('settings')}><i className="fa-solid fa-sliders"></i> Website Settings</button></li>
-            <li><button className={activeView === 'security' ? 'active' : ''} onClick={() => setActiveView('security')}><i className="fa-solid fa-lock"></i> Security</button></li>
+            <li><button className={activeView === 'overview' ? 'active' : ''} onClick={() => handleNavClick('overview')}><i className="fa-solid fa-chart-line"></i> Overview</button></li>
+            <li><button className={activeView === 'streams' ? 'active' : ''} onClick={() => handleNavClick('streams')}><i className="fa-solid fa-tower-cell"></i> Live Streams</button></li>
+            <li><button className={activeView === 'videos' ? 'active' : ''} onClick={() => handleNavClick('videos')}><i className="fa-brands fa-youtube"></i> Videos</button></li>
+            <li><button className={activeView === 'subscribers' ? 'active' : ''} onClick={() => handleNavClick('subscribers')}><i className="fa-solid fa-users"></i> Subscribers</button></li>
+            <li><button className={activeView === 'support' ? 'active' : ''} onClick={() => handleNavClick('support')}><i className="fa-solid fa-qrcode"></i> Support / UPI</button></li>
+            <li><button className={activeView === 'socials' ? 'active' : ''} onClick={() => handleNavClick('socials')}><i className="fa-solid fa-share-nodes"></i> Social Links</button></li>
+            <li><button className={activeView === 'settings' ? 'active' : ''} onClick={() => handleNavClick('settings')}><i className="fa-solid fa-sliders"></i> Website Settings</button></li>
+            <li><button className={activeView === 'security' ? 'active' : ''} onClick={() => handleNavClick('security')}><i className="fa-solid fa-lock"></i> Security</button></li>
           </ul>
 
           <div className="sidebar-footer">
@@ -655,7 +669,12 @@ export default function AdminPortal() {
         {/* MAIN DASHBOARD CONTENT */}
         <main className="main-content">
           <header className="content-header">
-            <h1>{activeView.toUpperCase()} MANAGER</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                <i className="fa-solid fa-bars"></i>
+              </button>
+              <h1>{activeView.toUpperCase()} MANAGER</h1>
+            </div>
             <a href="/" target="_blank" rel="noreferrer" style={{ color: '#0284c7', fontWeight: 700, textDecoration: 'none' }}>
               <i className="fa-solid fa-arrow-up-right-from-square"></i> View Live Site
             </a>
