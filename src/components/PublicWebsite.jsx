@@ -74,102 +74,46 @@ export default function PublicWebsite() {
     };
   }, []);
 
-  // 2. Fetch Public Data & Sync Shared DB Across All Devices
+  // 2. Fetch Public Data & Sync Shared DB Across All Devices via Supabase Cloud
   useEffect(() => {
     const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? '' : '';
 
-    const applyFreshData = (newData) => {
-      if (!newData) return;
-      setData(prev => {
-        const cached = localStorage.getItem('youtuber_site_data');
-        let existing = prev || {};
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            if (parsed && typeof parsed === 'object') {
-              existing = { ...existing, ...parsed };
-            }
-          } catch(e){}
-        }
-
-        const merged = mergeWithUserPriority(existing, newData);
-
-        localStorage.setItem('youtuber_site_data', JSON.stringify(merged));
-        if (merged.subscribers && merged.subscribers.count !== undefined) {
-          setDisplayCount(Number(merged.subscribers.count));
-        }
-        return merged;
-      });
-    };
-
-    const loadLocalCache = () => {
-      const cached = localStorage.getItem('youtuber_site_data');
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (parsed) {
-            setData(parsed);
-            if (parsed.subscribers && parsed.subscribers.count !== undefined) {
-              setDisplayCount(Number(parsed.subscribers.count));
-            }
-          }
-        } catch (e) {}
-      }
-    };
-
-    // Fast initial paint from local cache
-    loadLocalCache();
-
-    // Fetch live shared database data
     const refreshData = async () => {
-      // Fetch Supabase data (no subscribers - anon key can't write there)
       let fresh = await fetchAllSiteDataFromSupabase();
 
-      // Always also try REST API for subscribers (server uses service role key → correct count)
       try {
         const res = await fetch(`${API_BASE_URL}/api/public/data`);
         const json = await res.json();
         if (json.success && json.data) {
-          // Merge: Supabase data (streams/videos/settings) + REST API subscribers
           const combined = {
-            ...(fresh || {}),
             ...json.data,
-            // For non-subscriber fields, prefer Supabase if available
-            ...(fresh && fresh.settings ? { settings: fresh.settings } : {}),
-            ...(fresh && fresh.streams ? { streams: fresh.streams } : {}),
-            ...(fresh && fresh.videos ? { videos: fresh.videos } : {}),
-            ...(fresh && fresh.socials ? { socials: fresh.socials } : {}),
-            // Subscribers ALWAYS from REST API (server has correct data)
-            subscribers: json.data.subscribers || (fresh && fresh.subscribers)
+            ...(fresh || {})
           };
-          applyFreshData(combined);
+          if (combined.subscribers && combined.subscribers.count !== undefined) {
+            setDisplayCount(Number(combined.subscribers.count));
+          }
+          setData(combined);
           return;
         }
       } catch (err) {
-        // REST API offline (Render sleeping), use Supabase only
-        console.warn('REST API offline:', err);
+        // REST API offline, rely on Supabase Cloud
       }
 
-      // Fallback: use Supabase data only (no subscribers)
       if (fresh) {
-        applyFreshData(fresh);
+        if (fresh.subscribers && fresh.subscribers.count !== undefined) {
+          setDisplayCount(Number(fresh.subscribers.count));
+        }
+        setData(prev => ({ ...(prev || {}), ...fresh }));
       }
     };
 
     refreshData();
 
-    // Polling every 5 seconds for live multi-device sync
-    const syncInterval = setInterval(refreshData, 5000);
+    // Polling every 3 seconds for instant live multi-device sync
+    const syncInterval = setInterval(refreshData, 3000);
 
-    const handleStorage = (e) => {
-      if (!e.key || e.key === 'youtuber_site_data') {
-        loadLocalCache();
-      }
-    };
-    window.addEventListener('storage', handleStorage);
     return () => {
       clearInterval(syncInterval);
-      window.removeEventListener('storage', handleStorage);
     };
   }, []);
 

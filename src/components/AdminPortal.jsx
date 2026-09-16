@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/admin.css';
-import { supabase, fetchAllSiteDataFromSupabase, mergeWithUserPriority } from '../lib/supabaseClient';
+import {
+  supabase,
+  fetchAllSiteDataFromSupabase,
+  saveStreamToSupabase,
+  deleteStreamFromSupabase,
+  saveVideoToSupabase,
+  toggleTrendingVideoInSupabase,
+  deleteVideoFromSupabase,
+  saveSubscribersToSupabase,
+  saveSupportToSupabase,
+  saveSettingsToSupabase,
+  addSocialToSupabase,
+  deleteSocialFromSupabase
+} from '../lib/supabaseClient';
 
 const API_BASE_URL = '';
 
@@ -107,103 +120,20 @@ export default function AdminPortal() {
     });
   };
 
-  const syncLocalStore = (newData) => {
-    setDashboardData(prev => {
-      const merged = { ...(prev || {}), ...newData };
-      localStorage.setItem('youtuber_site_data', JSON.stringify(merged));
-      return merged;
-    });
-  };
-
-  const updateStoreLocal = (sectionKey, updateFn) => {
-    setDashboardData(prev => {
-      const current = prev || { settings: {}, streams: [], videos: [], subscribers: {}, support: {}, socials: [] };
-      const updatedSection = typeof updateFn === 'function' ? updateFn(current[sectionKey]) : updateFn;
-      if (typeof updatedSection === 'object' && updatedSection !== null && !Array.isArray(updatedSection)) {
-        updatedSection._userEdited = true;
-      }
-      const merged = {
-        ...current,
-        [sectionKey]: updatedSection,
-        [`_${sectionKey}UserEdited`]: true,
-        _lastUpdated: Date.now()
-      };
-      localStorage.setItem('youtuber_site_data', JSON.stringify(merged));
-      return merged;
-    });
-  };
-
   const loadDashboard = async () => {
-    let localCache = {};
-    const cached = localStorage.getItem('youtuber_site_data');
-    if (cached) {
-      try { localCache = JSON.parse(cached) || {}; } catch (e) {}
-    }
-
-    // CRITICAL: Load the protected subscriber count (never overwritten by API)
-    let protectedSubs = null;
-    const savedSubsRaw = localStorage.getItem('admin_saved_subscribers');
-    if (savedSubsRaw) {
-      try { protectedSubs = JSON.parse(savedSubsRaw); } catch (e) {}
-    }
-
-    // Inject protected subscribers into localCache so mergeWithUserPriority preserves them
-    if (protectedSubs && protectedSubs.count !== undefined) {
-      localCache.subscribers = { ...localCache.subscribers, ...protectedSubs, _userEdited: true };
-    }
-
-    const applyMergedDashboard = (incomingData) => {
-      if (!incomingData) return localCache;
-      const merged = mergeWithUserPriority(localCache, incomingData);
-      // ALWAYS restore protected subscriber count after any merge
-      if (protectedSubs && protectedSubs.count !== undefined) {
-        const apiCount = Number((incomingData.subscribers || {}).count) || 0;
-        const savedCount = Number(protectedSubs.count) || 0;
-        // Use the protected saved count (what admin explicitly set)
-        merged.subscribers = { ...(merged.subscribers || {}), ...protectedSubs, _userEdited: true };
-        // But if API returned a LARGER count, trust that (admin may have saved more elsewhere)
-        if (apiCount > savedCount) {
-          merged.subscribers.count = apiCount;
-        } else {
-          merged.subscribers.count = savedCount;
-        }
-      }
-      localStorage.setItem('youtuber_site_data', JSON.stringify(merged));
-      return merged;
-    };
-
-    // 1. Fast populate forms & dashboard state from local cache
-    if (Object.keys(localCache).length > 0) {
-      setDashboardData(localCache);
-      if (localCache.subscribers) setSubForm(localCache.subscribers);
-      if (localCache.support) setSupportForm(localCache.support);
-      if (localCache.settings) {
-        const st = localCache.settings;
-        setSettingsForm({
-          ...st,
-          hero_typing_texts: Array.isArray(st.hero_typing_texts) ? st.hero_typing_texts.join(', ') : (st.hero_typing_texts || '')
-        });
-      }
-    }
-
-    // 2. Fetch live database data from Supabase Cloud DB or API
     const sbData = await fetchAllSiteDataFromSupabase();
-    let finalData = localCache;
+    let finalData = sbData || {};
 
-    if (sbData && Object.keys(sbData).length > 0) {
-      finalData = applyMergedDashboard(sbData);
-    } else {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/admin/dashboard-data`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const json = await res.json();
-        if (json.success && json.data) {
-          finalData = applyMergedDashboard(json.data);
-        }
-      } catch (err) {
-        console.warn('API load warning, using local storage cache:', err);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/dashboard-data`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        finalData = { ...json.data, ...(sbData || {}) };
       }
+    } catch (err) {
+      console.warn('API load warning:', err);
     }
 
     if (finalData && Object.keys(finalData).length > 0) {
@@ -338,28 +268,15 @@ export default function AdminPortal() {
 
   const handleSaveStream = async (e) => {
     e.preventDefault();
-    const method = editStreamId ? 'PUT' : 'POST';
-    const targetUrl = editStreamId ? `${API_BASE_URL}/api/admin/streams/${editStreamId}` : `${API_BASE_URL}/api/admin/streams`;
-
-    const newStream = {
-      id: editStreamId || 'stream-' + Date.now(),
-      ...streamForm,
-      created_at: new Date().toISOString()
-    };
-
-    updateStoreLocal('streams', prev => {
-      const list = Array.isArray(prev) ? [...prev] : [];
-      if (editStreamId) {
-        const idx = list.findIndex(s => s.id.toString() === editStreamId.toString());
-        if (idx !== -1) list[idx] = newStream;
-        else list.unshift(newStream);
-      } else {
-        list.unshift(newStream);
-      }
-      return list;
-    });
+    try {
+      await saveStreamToSupabase(streamForm, editStreamId);
+    } catch (err) {
+      console.warn('Supabase save stream error:', err);
+    }
 
     try {
+      const method = editStreamId ? 'PUT' : 'POST';
+      const targetUrl = editStreamId ? `${API_BASE_URL}/api/admin/streams/${editStreamId}` : `${API_BASE_URL}/api/admin/streams`;
       await fetch(targetUrl, {
         method,
         headers: {
@@ -371,12 +288,19 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API save stream warning:', err);
     }
+
     setShowStreamModal(false);
+    await loadDashboard();
   };
 
   const deleteStream = async (id) => {
     if (!window.confirm('Delete this stream entry?')) return;
-    updateStoreLocal('streams', prev => (Array.isArray(prev) ? prev : []).filter(s => s.id.toString() !== id.toString()));
+    try {
+      await deleteStreamFromSupabase(id);
+    } catch (err) {
+      console.warn('Supabase delete stream error:', err);
+    }
+
     try {
       await fetch(`${API_BASE_URL}/api/admin/streams/${id}`, {
         method: 'DELETE',
@@ -385,6 +309,8 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API delete stream warning:', err);
     }
+
+    await loadDashboard();
   };
 
   // --- VIDEOS CRUD ---
@@ -409,29 +335,15 @@ export default function AdminPortal() {
 
   const handleSaveVideo = async (e) => {
     e.preventDefault();
-    const method = editVideoId ? 'PUT' : 'POST';
-    const targetUrl = editVideoId ? `${API_BASE_URL}/api/admin/videos/${editVideoId}` : `${API_BASE_URL}/api/admin/videos`;
-
-    const newVid = {
-      id: editVideoId || 'vid-' + Date.now(),
-      ...videoForm,
-      status: 'published',
-      created_at: new Date().toISOString()
-    };
-
-    updateStoreLocal('videos', prev => {
-      const list = Array.isArray(prev) ? [...prev] : [];
-      if (editVideoId) {
-        const idx = list.findIndex(v => v.id.toString() === editVideoId.toString());
-        if (idx !== -1) list[idx] = newVid;
-        else list.unshift(newVid);
-      } else {
-        list.unshift(newVid);
-      }
-      return list;
-    });
+    try {
+      await saveVideoToSupabase(videoForm, editVideoId);
+    } catch (err) {
+      console.warn('Supabase save video error:', err);
+    }
 
     try {
+      const method = editVideoId ? 'PUT' : 'POST';
+      const targetUrl = editVideoId ? `${API_BASE_URL}/api/admin/videos/${editVideoId}` : `${API_BASE_URL}/api/admin/videos`;
       await fetch(targetUrl, {
         method,
         headers: {
@@ -443,11 +355,18 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API save video warning:', err);
     }
+
     setShowVideoModal(false);
+    await loadDashboard();
   };
 
   const toggleTrending = async (vidId, currentStatus) => {
-    updateStoreLocal('videos', prev => (Array.isArray(prev) ? prev : []).map(v => v.id.toString() === vidId.toString() ? { ...v, is_trending: !currentStatus } : v));
+    try {
+      await toggleTrendingVideoInSupabase(vidId, currentStatus);
+    } catch (err) {
+      console.warn('Supabase toggle trending error:', err);
+    }
+
     try {
       await fetch(`${API_BASE_URL}/api/admin/videos/${vidId}/trending`, {
         method: 'PUT',
@@ -460,11 +379,18 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API toggle trending warning:', err);
     }
+
+    await loadDashboard();
   };
 
   const deleteVideo = async (id) => {
     if (!window.confirm('Delete this video entry?')) return;
-    updateStoreLocal('videos', prev => (Array.isArray(prev) ? prev : []).filter(v => v.id.toString() !== id.toString()));
+    try {
+      await deleteVideoFromSupabase(id);
+    } catch (err) {
+      console.warn('Supabase delete video error:', err);
+    }
+
     try {
       await fetch(`${API_BASE_URL}/api/admin/videos/${id}`, {
         method: 'DELETE',
@@ -473,6 +399,8 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API delete video warning:', err);
     }
+
+    await loadDashboard();
   };
 
   // --- SUBSCRIBER SAVE ---
@@ -487,37 +415,18 @@ export default function AdminPortal() {
     e.preventDefault();
     const updatedSub = {
       ...subForm,
-      count: Number(subForm.count) || 0,
-      _userEdited: true,
-      _savedAt: Date.now()
+      count: Number(subForm.count) || 0
     };
-    updateStoreLocal('subscribers', updatedSub);
-    setSubForm(updatedSub);
 
-    // Store in a SEPARATE protected key so it NEVER gets overwritten on refresh
-    localStorage.setItem('admin_saved_subscribers', JSON.stringify(updatedSub));
-
-    // Save directly to Supabase (anon key - may fail due to RLS but try anyway)
-    if (supabase) {
-      try {
-        await supabase.from('subscribers').upsert({
-          id: 1,
-          count: updatedSub.count,
-          counter_font: updatedSub.counter_font || "'Syne', sans-serif",
-          is_api_enabled: Boolean(updatedSub.is_api_enabled),
-          youtube_channel_id: updatedSub.youtube_channel_id || '',
-          youtube_api_key: updatedSub.youtube_api_key || '',
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'id' });
-      } catch (err) {
-        console.warn('Supabase subscriber save error:', err);
-      }
+    try {
+      await saveSubscribersToSupabase(updatedSub);
+    } catch (err) {
+      console.warn('Supabase subscriber save error:', err);
     }
 
-    // Also save to REST API (server uses service role key → saves to Supabase reliably)
     if (token) {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/admin/subscribers`, {
+        await fetch(`${API_BASE_URL}/api/admin/subscribers`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -525,10 +434,6 @@ export default function AdminPortal() {
           },
           body: JSON.stringify(updatedSub)
         });
-        const json = await res.json();
-        if (json.success) {
-          console.log('[Admin] Subscriber saved to server/Supabase:', json.subscribers?.count);
-        }
       } catch (err) {
         console.warn('API save subscriber warning:', err);
       }
@@ -536,12 +441,18 @@ export default function AdminPortal() {
 
     setShowSubModal(false);
     alert(`✅ Subscriber count updated to ${updatedSub.count}!`);
+    await loadDashboard();
   };
 
   // --- SUPPORT / UPI SAVE ---
   const handleSaveSupport = async (e) => {
     e.preventDefault();
-    updateStoreLocal('support', supportForm);
+    try {
+      await saveSupportToSupabase(supportForm);
+    } catch (err) {
+      console.warn('Supabase support save error:', err);
+    }
+
     try {
       await fetch(`${API_BASE_URL}/api/admin/support`, {
         method: 'PUT',
@@ -554,7 +465,9 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API save support warning:', err);
     }
-    alert('Support / UPI settings saved!');
+
+    alert('Support / UPI settings saved to database!');
+    await loadDashboard();
   };
 
   // --- WEBSITE SETTINGS SAVE ---
@@ -568,7 +481,11 @@ export default function AdminPortal() {
       hero_typing_texts: typingList
     };
 
-    updateStoreLocal('settings', payload);
+    try {
+      await saveSettingsToSupabase(payload);
+    } catch (err) {
+      console.warn('Supabase settings save error:', err);
+    }
 
     try {
       await fetch(`${API_BASE_URL}/api/admin/settings`, {
@@ -582,18 +499,20 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API save settings warning:', err);
     }
-    alert('Website settings updated successfully!');
+
+    alert('Website settings updated successfully in database!');
+    await loadDashboard();
   };
 
   // --- SOCIALS CRUD ---
   const handleAddSocial = async (e) => {
     e.preventDefault();
-    const newSocial = {
-      id: 's-' + Date.now(),
-      ...socialForm,
-      is_active: true
-    };
-    updateStoreLocal('socials', prev => [...(Array.isArray(prev) ? prev : []), newSocial]);
+    try {
+      await addSocialToSupabase(socialForm);
+    } catch (err) {
+      console.warn('Supabase add social error:', err);
+    }
+
     try {
       await fetch(`${API_BASE_URL}/api/admin/socials`, {
         method: 'POST',
@@ -606,13 +525,20 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API add social warning:', err);
     }
+
     setShowSocialModal(false);
     setSocialForm({ platform: '', url: '', icon_class: 'fa-brands fa-youtube' });
+    await loadDashboard();
   };
 
   const deleteSocial = async (id) => {
     if (!window.confirm('Delete social link?')) return;
-    updateStoreLocal('socials', prev => (Array.isArray(prev) ? prev : []).filter(s => s.id.toString() !== id.toString()));
+    try {
+      await deleteSocialFromSupabase(id);
+    } catch (err) {
+      console.warn('Supabase delete social error:', err);
+    }
+
     try {
       await fetch(`${API_BASE_URL}/api/admin/socials/${id}`, {
         method: 'DELETE',
@@ -621,6 +547,8 @@ export default function AdminPortal() {
     } catch (err) {
       console.warn('API delete social warning:', err);
     }
+
+    await loadDashboard();
   };
 
   // --- CHANGE PASSWORD ---
