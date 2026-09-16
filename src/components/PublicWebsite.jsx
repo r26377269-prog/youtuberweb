@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import Lenis from '@studio-freight/lenis';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { fetchAllSiteDataFromSupabase } from '../lib/supabaseClient';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -51,20 +52,17 @@ export default function PublicWebsite() {
     dataRef.current = data;
   }, [data]);
 
-  // 1. Lenis Smooth Scroll Setup (Bulletproof GSAP Integration)
+  // 1. Smooth Scroll setup with Lenis
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
-      smoothTouch: false
+      smoothTouch: false,
     });
 
-    lenis.on('scroll', ScrollTrigger.update);
-
-    const updateLenis = (time) => {
+    function updateLenis(time) {
       lenis.raf(time * 1000);
-    };
+    }
 
     gsap.ticker.add(updateLenis);
     gsap.ticker.lagSmoothing(0);
@@ -75,9 +73,18 @@ export default function PublicWebsite() {
     };
   }, []);
 
-  // 2. Fetch Public Data & Sync Local Storage Updates
+  // 2. Fetch Public Data & Sync Shared DB Across All Devices
   useEffect(() => {
-    const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? 'https://youtuberweb.onrender.com' : '';
+    const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? '' : '';
+
+    const applyFreshData = (newData) => {
+      if (!newData) return;
+      setData(newData);
+      localStorage.setItem('youtuber_site_data', JSON.stringify(newData));
+      if (newData.subscribers && newData.subscribers.count !== undefined) {
+        setDisplayCount(Number(newData.subscribers.count));
+      }
+    };
 
     const loadLocalCache = () => {
       const cached = localStorage.getItem('youtuber_site_data');
@@ -89,48 +96,37 @@ export default function PublicWebsite() {
             if (parsed.subscribers && parsed.subscribers.count !== undefined) {
               setDisplayCount(Number(parsed.subscribers.count));
             }
-            return true;
           }
         } catch (e) {}
       }
-      return false;
     };
 
-    const hasLocalEdits = loadLocalCache();
+    // Fast initial paint from local cache
+    loadLocalCache();
 
-    fetch(`${API_BASE_URL}/api/public/data`)
-      .then(res => res.json())
-      .then(json => {
+    // Fetch live shared database data
+    const refreshData = async () => {
+      let fresh = await fetchAllSiteDataFromSupabase();
+      if (fresh) {
+        applyFreshData(fresh);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/public/data`);
+        const json = await res.json();
         if (json.success && json.data) {
-          const cached = localStorage.getItem('youtuber_site_data');
-          if (hasLocalEdits && cached) {
-            try {
-              const localData = JSON.parse(cached);
-              const mergedData = {
-                settings: localData.settings || json.data.settings,
-                streams: (localData.streams && localData.streams.length > 0) ? localData.streams : json.data.streams,
-                videos: (localData.videos && localData.videos.length > 0) ? localData.videos : json.data.videos,
-                subscribers: localData.subscribers || json.data.subscribers,
-                support: localData.support || json.data.support,
-                socials: (localData.socials && localData.socials.length > 0) ? localData.socials : json.data.socials
-              };
-              setData(mergedData);
-              localStorage.setItem('youtuber_site_data', JSON.stringify(mergedData));
-              if (mergedData.subscribers && mergedData.subscribers.count !== undefined) {
-                setDisplayCount(Number(mergedData.subscribers.count));
-              }
-              return;
-            } catch (e) {}
-          }
-
-          setData(json.data);
-          localStorage.setItem('youtuber_site_data', JSON.stringify(json.data));
-          if (json.data.subscribers && json.data.subscribers.count !== undefined) {
-            setDisplayCount(Number(json.data.subscribers.count));
-          }
+          applyFreshData(json.data);
         }
-      })
-      .catch(err => console.warn('Public API offline, using cached local data:', err));
+      } catch (err) {
+        console.warn('Public API offline, keeping cached local data:', err);
+      }
+    };
+
+    refreshData();
+
+    // Polling every 5 seconds for live multi-device sync
+    const syncInterval = setInterval(refreshData, 5000);
 
     const handleStorage = (e) => {
       if (!e.key || e.key === 'youtuber_site_data') {
@@ -138,7 +134,10 @@ export default function PublicWebsite() {
       }
     };
     window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    return () => {
+      clearInterval(syncInterval);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   // 3. Dynamic Typing Subtitle Loop Effect & Title Sync

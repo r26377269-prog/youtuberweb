@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/admin.css';
+import { supabase, fetchAllSiteDataFromSupabase } from '../lib/supabaseClient';
 
 const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? 'https://youtuberweb.onrender.com' : '';
 
@@ -32,11 +33,11 @@ export default function AdminPortal() {
   const [showSubModal, setShowSubModal] = useState(false);
   const [showSocialModal, setShowSocialModal] = useState(false);
 
-  // Forms
+  // Forms state
   const [streamForm, setStreamForm] = useState({
     title: '',
     description: '',
-    thumbnail_url: '',
+    thumbnail_url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
     scheduled_date: new Date().toISOString().split('T')[0],
     scheduled_time: '19:00',
     youtube_url: '',
@@ -54,18 +55,18 @@ export default function AdminPortal() {
 
   const [subForm, setSubForm] = useState({
     count: 1245890,
-    counter_font: "'Bebas Neue', sans-serif",
     is_api_enabled: false,
     youtube_channel_id: '',
-    youtube_api_key: ''
+    youtube_api_key: '',
+    counter_font: "'Bebas Neue', sans-serif"
   });
 
   const [supportForm, setSupportForm] = useState({
-    upi_id: 'fam_2f43d815507f5ee1714a857d7454c93c7e6e661e@fam',
+    upi_id: 'creator@upi',
     creator_name: 'ALEX VANCE',
+    qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=creator@upi%26pn=ALEX%20VANCE%26cu=INR',
     default_amount: 100,
-    support_message: 'Support the channel directly!',
-    qr_code_url: ''
+    support_message: 'Support the channel directly! Every contribution helps improve our stream hardware and production quality.'
   });
 
   const [settingsForm, setSettingsForm] = useState({
@@ -109,13 +110,29 @@ export default function AdminPortal() {
   };
 
   const loadDashboard = async () => {
+    // 1. Fetch live database data from Supabase Cloud DB
+    const sbData = await fetchAllSiteDataFromSupabase();
+    if (sbData) {
+      setDashboardData(sbData);
+      localStorage.setItem('youtuber_site_data', JSON.stringify(sbData));
+      if (sbData.subscribers) setSubForm(sbData.subscribers);
+      if (sbData.support) setSupportForm(sbData.support);
+      if (sbData.settings) {
+        const st = sbData.settings;
+        setSettingsForm({
+          ...st,
+          hero_typing_texts: Array.isArray(st.hero_typing_texts) ? st.hero_typing_texts.join(', ') : (st.hero_typing_texts || '')
+        });
+      }
+      return;
+    }
+
+    // 2. Fallback to API / local cache
     let activeData = null;
-    let hasLocalEdits = false;
     const cached = localStorage.getItem('youtuber_site_data');
     if (cached) {
       try {
         activeData = JSON.parse(cached);
-        if (activeData) hasLocalEdits = true;
       } catch (e) { }
     }
 
@@ -125,18 +142,7 @@ export default function AdminPortal() {
       });
       const json = await res.json();
       if (json.success && json.data) {
-        if (hasLocalEdits && activeData) {
-          activeData = {
-            settings: activeData.settings || json.data.settings,
-            streams: (activeData.streams && activeData.streams.length > 0) ? activeData.streams : json.data.streams,
-            videos: (activeData.videos && activeData.videos.length > 0) ? activeData.videos : json.data.videos,
-            subscribers: activeData.subscribers || json.data.subscribers,
-            support: activeData.support || json.data.support,
-            socials: (activeData.socials && activeData.socials.length > 0) ? activeData.socials : json.data.socials
-          };
-        } else {
-          activeData = json.data;
-        }
+        activeData = json.data;
         localStorage.setItem('youtuber_site_data', JSON.stringify(activeData));
       }
     } catch (err) {
