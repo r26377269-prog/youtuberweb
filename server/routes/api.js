@@ -26,6 +26,7 @@ const getPublicData = async (req, res) => {
         if (settingsRes.data) settings = settingsRes.data;
         if (streamsRes.data && streamsRes.data.length > 0) streams = streamsRes.data;
         if (videosRes.data && videosRes.data.length > 0) videos = videosRes.data;
+        // ALWAYS trust Supabase for subscribers (service role key can read/write reliably)
         if (subsRes.data) subscribers = subsRes.data;
         if (supportRes.data) support = supportRes.data;
         if (socialsRes.data && socialsRes.data.length > 0) socials = socialsRes.data;
@@ -39,7 +40,9 @@ const getPublicData = async (req, res) => {
     if (!settings || !settings.creator_name) settings = local.settings || settings || {};
     if (streams.length === 0) streams = local.streams || [];
     if (videos.length === 0) videos = (local.videos || []).filter(v => v.status === 'published');
-    if (!subscribers) {
+    // IMPORTANT: If Supabase returned subscribers data, ALWAYS use it (even if count=0)
+    // Only fall back to store.json if Supabase is not configured OR returned null/error
+    if (subscribers === null) {
       subscribers = (local.subscribers && local.subscribers.count !== undefined) ? local.subscribers : { count: 0, is_api_enabled: false };
     }
     if (!support || !support.upi_id) support = local.support_settings || support || {};

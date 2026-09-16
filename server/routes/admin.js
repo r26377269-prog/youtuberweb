@@ -161,6 +161,7 @@ router.get('/dashboard-data', authenticateAdmin, async (req, res) => {
         if (settingsRes.data) settings = settingsRes.data;
         if (streamsRes.data) streams = streamsRes.data;
         if (videosRes.data) videos = videosRes.data;
+        // ALWAYS trust Supabase for subscribers - service role key ensures reliability
         if (subsRes.data) subscribers = subsRes.data;
         if (supportRes.data) support = supportRes.data;
         if (socialsRes.data) socials = socialsRes.data;
@@ -173,7 +174,8 @@ router.get('/dashboard-data', authenticateAdmin, async (req, res) => {
     if (!settings.creator_name) settings = local.settings || settings;
     if (streams.length === 0) streams = local.streams || [];
     if (videos.length === 0) videos = local.videos || [];
-    if (!subscribers || !subscribers.id) subscribers = local.subscribers || subscribers;
+    // Only fall back to store.json for subscribers if Supabase is not configured (subscribers stays as {} default)
+    if (!subscribers || subscribers.id === undefined) subscribers = local.subscribers || subscribers;
     if (!support.upi_id) support = local.support_settings || support;
     if (socials.length === 0) socials = local.social_links || [];
 
@@ -439,19 +441,27 @@ router.put('/subscribers', authenticateAdmin, async (req, res) => {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase
+        const upsertData = {
+          id: 1,
+          count: parsedCount,
+          is_api_enabled: local.subscribers.is_api_enabled,
+          youtube_channel_id: local.subscribers.youtube_channel_id || '',
+          youtube_api_key: local.subscribers.youtube_api_key || '',
+          counter_font: local.subscribers.counter_font,
+          updated_at: new Date().toISOString()
+        };
+        console.log('[Supabase] Upserting subscribers:', JSON.stringify(upsertData));
+        const { data: sbData, error: sbError } = await supabase
           .from('subscribers')
-          .upsert({
-            id: 1,
-            count: parsedCount,
-            is_api_enabled: local.subscribers.is_api_enabled,
-            youtube_channel_id: local.subscribers.youtube_channel_id || '',
-            youtube_api_key: local.subscribers.youtube_api_key || '',
-            counter_font: local.subscribers.counter_font,
-            updated_at: new Date().toISOString()
-          });
+          .upsert(upsertData, { onConflict: 'id' })
+          .select();
+        if (sbError) {
+          console.error('[Supabase] Subscriber upsert ERROR:', sbError.message, sbError.details, sbError.hint);
+        } else {
+          console.log('[Supabase] Subscriber upsert SUCCESS. Saved count:', sbData?.[0]?.count);
+        }
       } catch (err) {
-        console.warn('Supabase subscriber update warning:', err.message);
+        console.error('[Supabase] Subscriber update exception:', err.message);
       }
     }
 

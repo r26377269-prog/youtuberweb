@@ -462,12 +462,17 @@ export default function AdminPortal() {
     e.preventDefault();
     const updatedSub = {
       ...subForm,
-      count: Number(subForm.count) || 0
+      count: Number(subForm.count) || 0,
+      _userEdited: true,
+      _savedAt: Date.now()
     };
     updateStoreLocal('subscribers', updatedSub);
     setSubForm(updatedSub);
 
-    // Save directly to Supabase
+    // Store in a SEPARATE protected key so it NEVER gets overwritten on refresh
+    localStorage.setItem('admin_saved_subscribers', JSON.stringify(updatedSub));
+
+    // Save directly to Supabase (anon key - may fail due to RLS but try anyway)
     if (supabase) {
       try {
         await supabase.from('subscribers').upsert({
@@ -478,16 +483,16 @@ export default function AdminPortal() {
           youtube_channel_id: updatedSub.youtube_channel_id || '',
           youtube_api_key: updatedSub.youtube_api_key || '',
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'id' });
       } catch (err) {
         console.warn('Supabase subscriber save error:', err);
       }
     }
 
-    // Also save to REST API (server store.json)
+    // Also save to REST API (server uses service role key → saves to Supabase reliably)
     if (token) {
       try {
-        await fetch(`${API_BASE_URL}/api/admin/subscribers`, {
+        const res = await fetch(`${API_BASE_URL}/api/admin/subscribers`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -495,13 +500,17 @@ export default function AdminPortal() {
           },
           body: JSON.stringify(updatedSub)
         });
+        const json = await res.json();
+        if (json.success) {
+          console.log('[Admin] Subscriber saved to server/Supabase:', json.subscribers?.count);
+        }
       } catch (err) {
         console.warn('API save subscriber warning:', err);
       }
     }
 
     setShowSubModal(false);
-    alert('✅ Subscriber count updated successfully!');
+    alert(`✅ Subscriber count updated to ${updatedSub.count}!`);
   };
 
   // --- SUPPORT / UPI SAVE ---
