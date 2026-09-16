@@ -61,11 +61,13 @@ export const mergeWithUserPriority = (existing, incoming) => {
 export const fetchAllSiteDataFromSupabase = async () => {
   if (!supabase) return null;
   try {
-    const [settingsRes, streamsRes, videosRes, subsRes, supportRes, socialsRes] = await Promise.allSettled([
+    // Note: subscribers are NOT fetched from Supabase here.
+    // The anon key cannot write to subscribers (RLS), so Supabase always has stale count.
+    // Subscribers come from localStorage (_userEdited) or REST API (server has service role key).
+    const [settingsRes, streamsRes, videosRes, supportRes, socialsRes] = await Promise.allSettled([
       supabase.from('settings').select('*').single(),
       supabase.from('streams').select('*').order('created_at', { ascending: false }),
       supabase.from('videos').select('*').order('created_at', { ascending: false }),
-      supabase.from('subscribers').select('*').single(),
       supabase.from('support_settings').select('*').single(),
       supabase.from('social_links').select('*').order('sort_order', { ascending: true })
     ]);
@@ -73,11 +75,10 @@ export const fetchAllSiteDataFromSupabase = async () => {
     const settings = settingsRes.status === 'fulfilled' && settingsRes.value?.data ? settingsRes.value.data : null;
     const streams = streamsRes.status === 'fulfilled' && Array.isArray(streamsRes.value?.data) && streamsRes.value.data.length > 0 ? streamsRes.value.data : null;
     const videos = videosRes.status === 'fulfilled' && Array.isArray(videosRes.value?.data) && videosRes.value.data.length > 0 ? videosRes.value.data : null;
-    const subscribers = subsRes.status === 'fulfilled' && subsRes.value?.data ? subsRes.value.data : null;
     const support = supportRes.status === 'fulfilled' && supportRes.value?.data ? supportRes.value.data : null;
     const socials = socialsRes.status === 'fulfilled' && Array.isArray(socialsRes.value?.data) && socialsRes.value.data.length > 0 ? socialsRes.value.data : null;
 
-    if (!settings && !streams && !videos && !subscribers && !support && !socials) {
+    if (!settings && !streams && !videos && !support && !socials) {
       return null;
     }
 
@@ -85,7 +86,7 @@ export const fetchAllSiteDataFromSupabase = async () => {
     if (settings) result.settings = settings;
     if (streams) result.streams = streams;
     if (videos) result.videos = videos;
-    if (subscribers) result.subscribers = subscribers;
+    // subscribers intentionally excluded — use localStorage or REST API instead
     if (support) result.support = support;
     if (socials) result.socials = socials;
 

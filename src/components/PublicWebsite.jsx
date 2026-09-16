@@ -122,20 +122,37 @@ export default function PublicWebsite() {
 
     // Fetch live shared database data
     const refreshData = async () => {
+      // Fetch Supabase data (no subscribers - anon key can't write there)
       let fresh = await fetchAllSiteDataFromSupabase();
-      if (fresh) {
-        applyFreshData(fresh);
-        return;
-      }
 
+      // Always also try REST API for subscribers (server uses service role key → correct count)
       try {
         const res = await fetch(`${API_BASE_URL}/api/public/data`);
         const json = await res.json();
         if (json.success && json.data) {
-          applyFreshData(json.data);
+          // Merge: Supabase data (streams/videos/settings) + REST API subscribers
+          const combined = {
+            ...(fresh || {}),
+            ...json.data,
+            // For non-subscriber fields, prefer Supabase if available
+            ...(fresh && fresh.settings ? { settings: fresh.settings } : {}),
+            ...(fresh && fresh.streams ? { streams: fresh.streams } : {}),
+            ...(fresh && fresh.videos ? { videos: fresh.videos } : {}),
+            ...(fresh && fresh.socials ? { socials: fresh.socials } : {}),
+            // Subscribers ALWAYS from REST API (server has correct data)
+            subscribers: json.data.subscribers || (fresh && fresh.subscribers)
+          };
+          applyFreshData(combined);
+          return;
         }
       } catch (err) {
-        console.warn('Public API offline, keeping cached local data:', err);
+        // REST API offline (Render sleeping), use Supabase only
+        console.warn('REST API offline:', err);
+      }
+
+      // Fallback: use Supabase data only (no subscribers)
+      if (fresh) {
+        applyFreshData(fresh);
       }
     };
 
