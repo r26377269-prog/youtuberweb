@@ -140,9 +140,34 @@ export default function AdminPortal() {
       try { localCache = JSON.parse(cached) || {}; } catch (e) {}
     }
 
+    // CRITICAL: Load the protected subscriber count (never overwritten by API)
+    let protectedSubs = null;
+    const savedSubsRaw = localStorage.getItem('admin_saved_subscribers');
+    if (savedSubsRaw) {
+      try { protectedSubs = JSON.parse(savedSubsRaw); } catch (e) {}
+    }
+
+    // Inject protected subscribers into localCache so mergeWithUserPriority preserves them
+    if (protectedSubs && protectedSubs.count !== undefined) {
+      localCache.subscribers = { ...localCache.subscribers, ...protectedSubs, _userEdited: true };
+    }
+
     const applyMergedDashboard = (incomingData) => {
       if (!incomingData) return localCache;
       const merged = mergeWithUserPriority(localCache, incomingData);
+      // ALWAYS restore protected subscriber count after any merge
+      if (protectedSubs && protectedSubs.count !== undefined) {
+        const apiCount = Number((incomingData.subscribers || {}).count) || 0;
+        const savedCount = Number(protectedSubs.count) || 0;
+        // Use the protected saved count (what admin explicitly set)
+        merged.subscribers = { ...(merged.subscribers || {}), ...protectedSubs, _userEdited: true };
+        // But if API returned a LARGER count, trust that (admin may have saved more elsewhere)
+        if (apiCount > savedCount) {
+          merged.subscribers.count = apiCount;
+        } else {
+          merged.subscribers.count = savedCount;
+        }
+      }
       localStorage.setItem('youtuber_site_data', JSON.stringify(merged));
       return merged;
     };
