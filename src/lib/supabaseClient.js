@@ -22,8 +22,10 @@ export const mergeWithUserPriority = (existing, incoming) => {
     ? { ...incoming.support, ...existing.support }
     : { ...(existing.support || {}), ...(incoming.support || {}) };
 
-  const mergedSubscribers = (existing.subscribers && existing.subscribers._userEdited)
-    ? { ...incoming.subscribers, ...existing.subscribers }
+  // Subscribers: always prefer incoming (Supabase) since admin writes there directly
+  // Only use existing if incoming has no count at all
+  const mergedSubscribers = (incoming.subscribers && incoming.subscribers.count !== undefined)
+    ? { ...(existing.subscribers || {}), ...incoming.subscribers }
     : { ...(existing.subscribers || {}), ...(incoming.subscribers || {}) };
 
   const mergedStreams = (Array.isArray(existing.streams) && existing.streams.length > 0 && existing._streamsUserEdited)

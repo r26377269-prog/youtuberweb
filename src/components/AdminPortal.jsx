@@ -458,7 +458,7 @@ export default function AdminPortal() {
     setShowSubModal(true);
   };
 
-  const handleSaveSub = (e) => {
+  const handleSaveSub = async (e) => {
     e.preventDefault();
     const updatedSub = {
       ...subForm,
@@ -466,10 +466,40 @@ export default function AdminPortal() {
     };
     updateStoreLocal('subscribers', updatedSub);
     setSubForm(updatedSub);
+
+    // Save directly to Supabase so homepage polling gets updated count immediately
+    if (supabase) {
+      try {
+        // Get current row id first
+        const { data: existing } = await supabase.from('subscribers').select('id').single();
+        if (existing && existing.id) {
+          await supabase.from('subscribers').update({
+            count: updatedSub.count,
+            counter_font: updatedSub.counter_font,
+            is_api_enabled: updatedSub.is_api_enabled,
+            youtube_api_key: updatedSub.youtube_api_key,
+            channel_id: updatedSub.channel_id,
+            _userEdited: true
+          }).eq('id', existing.id);
+        } else {
+          await supabase.from('subscribers').insert({
+            count: updatedSub.count,
+            counter_font: updatedSub.counter_font,
+            is_api_enabled: updatedSub.is_api_enabled,
+            youtube_api_key: updatedSub.youtube_api_key,
+            channel_id: updatedSub.channel_id,
+            _userEdited: true
+          });
+        }
+      } catch (err) {
+        console.warn('Supabase subscriber save warning:', err);
+      }
+    }
+
     setShowSubModal(false);
     alert('Subscriber count and settings updated successfully!');
 
-    // Async server sync
+    // Async server sync (backup)
     if (token) {
       fetch(`${API_BASE_URL}/api/admin/subscribers`, {
         method: 'PUT',

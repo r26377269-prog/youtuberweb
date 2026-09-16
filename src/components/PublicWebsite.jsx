@@ -161,6 +161,10 @@ export default function PublicWebsite() {
     if (data?.settings?.website_title) {
       document.title = data.settings.website_title;
     }
+    // Keep subscriber count in sync whenever fresh data arrives from Supabase polling
+    if (data?.subscribers?.count !== undefined) {
+      setDisplayCount(Number(data.subscribers.count));
+    }
   }, [data]);
 
   useEffect(() => {
