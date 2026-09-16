@@ -5,6 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { fetchAllSiteDataFromSupabase, mergeWithUserPriority } from '../lib/supabaseClient';
 
 gsap.registerPlugin(ScrollTrigger);
+gsap.config({ nullTargetWarn: false });
 
 export default function PublicWebsite() {
   const [data, setData] = useState(null);
