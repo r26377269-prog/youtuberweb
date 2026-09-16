@@ -470,34 +470,48 @@ export default function AdminPortal() {
     // Save directly to Supabase so homepage polling gets updated count immediately
     if (supabase) {
       try {
-        // Get current row id first
-        const { data: existing } = await supabase.from('subscribers').select('id').single();
-        if (existing && existing.id) {
-          await supabase.from('subscribers').update({
-            count: updatedSub.count,
-            counter_font: updatedSub.counter_font,
-            is_api_enabled: updatedSub.is_api_enabled,
-            youtube_api_key: updatedSub.youtube_api_key,
-            channel_id: updatedSub.channel_id,
-            _userEdited: true
-          }).eq('id', existing.id);
+        // First: check what's in the subscribers table (debug)
+        const { data: currentRow, error: fetchErr } = await supabase.from('subscribers').select('*').single();
+        console.log('[DEBUG] Supabase subscribers row:', currentRow, 'error:', fetchErr);
+        console.log('[DEBUG] Saving count:', updatedSub.count, 'type:', typeof updatedSub.count);
+
+        if (currentRow && currentRow.id) {
+          // Build update object using actual column names from currentRow
+          const updatePayload = { ...currentRow };
+          // Try updating whichever column holds the count
+          if ('count' in currentRow) updatePayload.count = updatedSub.count;
+          if ('sub_count' in currentRow) updatePayload.sub_count = updatedSub.count;
+          if ('subscriber_count' in currentRow) updatePayload.subscriber_count = updatedSub.count;
+          if ('counter_font' in currentRow) updatePayload.counter_font = updatedSub.counter_font || currentRow.counter_font;
+          if ('is_api_enabled' in currentRow) updatePayload.is_api_enabled = updatedSub.is_api_enabled;
+
+          const { error: updateErr } = await supabase
+            .from('subscribers')
+            .update(updatePayload)
+            .eq('id', currentRow.id);
+          console.log('[DEBUG] Supabase update error:', updateErr);
         } else {
-          await supabase.from('subscribers').insert({
+          // No row exists — insert fresh
+          const { error: insertErr } = await supabase.from('subscribers').insert({
             count: updatedSub.count,
             counter_font: updatedSub.counter_font,
-            is_api_enabled: updatedSub.is_api_enabled,
-            youtube_api_key: updatedSub.youtube_api_key,
-            channel_id: updatedSub.channel_id,
-            _userEdited: true
+            is_api_enabled: updatedSub.is_api_enabled
           });
+          console.log('[DEBUG] Supabase insert error:', insertErr);
         }
+
+        // Verify save worked
+        const { data: verifyRow } = await supabase.from('subscribers').select('*').single();
+        console.log('[DEBUG] Supabase row AFTER save:', verifyRow);
       } catch (err) {
-        console.warn('Supabase subscriber save warning:', err);
+        console.warn('Supabase subscriber save error:', err);
       }
+    } else {
+      console.warn('[DEBUG] Supabase client not initialized!');
     }
 
     setShowSubModal(false);
-    alert('Subscriber count and settings updated successfully!');
+    alert('Subscriber count and settings updated! Check browser console for debug info.');
 
     // Async server sync (backup)
     if (token) {
