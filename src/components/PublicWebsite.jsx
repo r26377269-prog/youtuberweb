@@ -193,12 +193,13 @@ export default function PublicWebsite() {
       // Hero Entrance Timeline
       if (document.querySelector(".nav-capsule-wrapper")) {
         const heroTl = gsap.timeline({ defaults: { ease: "power2.out" } });
-        heroTl.fromTo(".nav-capsule-wrapper", { y: -50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8 })
-              .fromTo(".hero-badge-pill", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, "-=0.4")
-              .fromTo(".hero-title-main", { y: 25, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7 }, "-=0.3")
-              .fromTo(".hero-subtitle", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6 }, "-=0.4")
-              .fromTo(".hero-btn-group > *", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, stagger: 0.1 }, "-=0.3")
-              .fromTo(".hero-spotlight-card", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8 }, "-=0.5");
+        heroTl.fromTo(".nav-capsule-wrapper", { y: -50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8 });
+        if (document.querySelector(".hero-badge-pill")) heroTl.fromTo(".hero-badge-pill", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, "-=0.4");
+        if (document.querySelector(".hero-title-main")) heroTl.fromTo(".hero-title-main", { y: 25, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7 }, "-=0.3");
+        if (document.querySelector(".hero-subtitle")) heroTl.fromTo(".hero-subtitle", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6 }, "-=0.4");
+        const btnGroupChildren = document.querySelectorAll(".hero-btn-group > *");
+        if (btnGroupChildren.length > 0) heroTl.fromTo(btnGroupChildren, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, stagger: 0.1 }, "-=0.3");
+        if (document.querySelector(".hero-spotlight-card")) heroTl.fromTo(".hero-spotlight-card", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8 }, "-=0.5");
       }
 
       // Section Headers Reveal

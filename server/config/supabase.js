@@ -3,14 +3,14 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || 'https://mdnobmktdijxashunzbs.supabase.co';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbm9ibWt0ZGlqeGFzaHVuemJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMTAyMTIsImV4cCI6MjEwNDg4NjIxMn0.jKoh60Y8pD285w3PfjKN5mDg2zwpjkHvcVcUfVqjkqE';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 let supabase = null;
 let isSupabaseConfigured = false;
 
-if (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('your-supabase-project-id')) {
+if (supabaseUrl && (supabaseServiceKey || supabaseAnonKey) && !supabaseUrl.includes('your-supabase-project-id')) {
   try {
     const keyToUse = supabaseServiceKey || supabaseAnonKey;
     supabase = createClient(supabaseUrl, keyToUse);
