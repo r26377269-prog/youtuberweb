@@ -71,17 +71,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Fetch all dashboard data from Admin API
 async function loadDashboardData() {
-  let activeData = null;
-  let hasLocalEdits = false;
-  const cached = localStorage.getItem('youtuber_site_data');
-  if (cached) {
-    try {
-      activeData = JSON.parse(cached);
-      if (activeData) hasLocalEdits = true;
-    } catch (e) {}
-  }
-
-  // Ensure default structure if missing
   const defaultData = {
     settings: { website_title: 'CREATOR • Official YouTuber Website', creator_name: 'ALEX VANCE' },
     streams: [],
@@ -91,14 +80,7 @@ async function loadDashboardData() {
     socials: []
   };
 
-  currentDashboardData = activeData ? { ...defaultData, ...activeData } : defaultData;
-  renderOverviewStats();
-  renderStreamsTable();
-  renderVideosTable();
-  renderSubscribersTable();
-  populateSupportForm();
-  renderSocialsTable();
-  populateSettingsForm();
+  currentDashboardData = defaultData;
 
   const token = getAdminToken();
   if (token) {
@@ -109,19 +91,7 @@ async function loadDashboardData() {
       const json = await res.json();
 
       if (json.success && json.data) {
-        if (hasLocalEdits && activeData) {
-          currentDashboardData = {
-            settings: activeData.settings || json.data.settings || defaultData.settings,
-            streams: (activeData.streams && activeData.streams.length > 0) ? activeData.streams : json.data.streams,
-            videos: (activeData.videos && activeData.videos.length > 0) ? activeData.videos : json.data.videos,
-            subscribers: activeData.subscribers || json.data.subscribers || defaultData.subscribers,
-            support: activeData.support || json.data.support || defaultData.support,
-            socials: (activeData.socials && activeData.socials.length > 0) ? activeData.socials : json.data.socials
-          };
-        } else {
-          currentDashboardData = json.data;
-        }
-        localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
+        currentDashboardData = json.data;
         renderOverviewStats();
         renderStreamsTable();
         renderVideosTable();

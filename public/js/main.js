@@ -14,6 +14,7 @@ requestAnimationFrame(raf);
 
 // --- GSAP SCROLLTRIGGER SYNC & SMOOTH REVEALS ---
 gsap.registerPlugin(ScrollTrigger);
+gsap.config({ nullTargetWarn: false });
 
 lenis.on('scroll', ScrollTrigger.update);
 
@@ -53,15 +54,19 @@ function typing() {
 // --- GSAP SMOOTH SCROLL REVEAL ANIMATIONS (RICH SCROLL FX) ---
 function initSmoothGsapAnimations() {
   // Ambient Glow Orbs Parallax Motion
-  gsap.to(".ambient-1", {
-    y: 220,
-    scrollTrigger: { trigger: "body", start: "top top", end: "bottom bottom", scrub: 1.5 }
-  });
-  gsap.to(".ambient-2", {
-    y: -180,
-    x: 80,
-    scrollTrigger: { trigger: "body", start: "top top", end: "bottom bottom", scrub: 2 }
-  });
+  if (document.querySelector(".ambient-1")) {
+    gsap.to(".ambient-1", {
+      y: 220,
+      scrollTrigger: { trigger: ".hero-section", start: "top top", end: "bottom bottom", scrub: 1.5 }
+    });
+  }
+  if (document.querySelector(".ambient-2")) {
+    gsap.to(".ambient-2", {
+      y: -180,
+      x: 80,
+      scrollTrigger: { trigger: ".hero-section", start: "top top", end: "bottom bottom", scrub: 2 }
+    });
+  }
 
   // Navbar Scroll Shrink & Glass Effect
   ScrollTrigger.create({
@@ -404,18 +409,20 @@ function renderVideos(videos) {
   `).join('');
 
   // Animate video cards entrance smoothly with GSAP
-  gsap.from(".video-card", {
-    y: 40,
-    opacity: 0,
-    duration: 0.8,
-    stagger: 0.15,
-    ease: "power3.out",
-    scrollTrigger: {
-      trigger: "#videos-container",
-      start: "top 80%",
-      once: true
-    }
-  });
+  if (document.querySelectorAll(".video-card").length > 0) {
+    gsap.from(".video-card", {
+      y: 40,
+      opacity: 0,
+      duration: 0.8,
+      stagger: 0.15,
+      ease: "power3.out",
+      scrollTrigger: {
+        trigger: "#videos-container",
+        start: "top 80%",
+        once: true
+      }
+    });
+  }
 }
 
 function renderSupport(support) {
@@ -451,18 +458,20 @@ function renderSocials(socials) {
     </a>
   `).join('');
 
-  gsap.from(".social-glass-card", {
-    scale: 0.9,
-    opacity: 0,
-    duration: 0.7,
-    stagger: 0.1,
-    ease: "power3.out",
-    scrollTrigger: {
-      trigger: "#socials-container",
-      start: "top 85%",
-      once: true
-    }
-  });
+  if (document.querySelectorAll(".social-glass-card").length > 0) {
+    gsap.from(".social-glass-card", {
+      scale: 0.9,
+      opacity: 0,
+      duration: 0.7,
+      stagger: 0.1,
+      ease: "power3.out",
+      scrollTrigger: {
+        trigger: "#socials-container",
+        start: "top 85%",
+        once: true
+      }
+    });
+  }
 }
 
 // INITIALIZATION
