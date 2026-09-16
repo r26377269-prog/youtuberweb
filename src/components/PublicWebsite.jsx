@@ -76,7 +76,9 @@ export default function PublicWebsite() {
 
   // 2. Fetch Public Data & Sync Shared DB Across All Devices via Supabase Cloud
   useEffect(() => {
-    const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? '' : '';
+    const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? (window.location.port === '3000' ? '' : 'http://localhost:3000')
+      : 'https://youtuberweb.onrender.com';
 
     const refreshData = async () => {
       let fresh = await fetchAllSiteDataFromSupabase();
@@ -126,6 +128,9 @@ export default function PublicWebsite() {
     if (data?.subscribers?.count !== undefined) {
       setDisplayCount(Number(data.subscribers.count));
     }
+    setTimeout(() => {
+      try { ScrollTrigger.refresh(); } catch (e) {}
+    }, 100);
   }, [data]);
 
   useEffect(() => {
@@ -172,176 +177,199 @@ export default function PublicWebsite() {
   useEffect(() => {
     const ctx = gsap.context(() => {
       // Gentle Parallax Background Orbs
-      gsap.to(".ambient-1", {
-        y: 150,
-        scrollTrigger: { trigger: "body", start: "top top", end: "bottom bottom", scrub: 1 }
-      });
-      gsap.to(".ambient-2", {
-        y: -120,
-        scrollTrigger: { trigger: "body", start: "top top", end: "bottom bottom", scrub: 1 }
-      });
+      if (document.querySelector(".ambient-1")) {
+        gsap.to(".ambient-1", {
+          y: 150,
+          scrollTrigger: { trigger: compRef.current || ".public-app-root", start: "top top", end: "bottom bottom", scrub: 1 }
+        });
+      }
+      if (document.querySelector(".ambient-2")) {
+        gsap.to(".ambient-2", {
+          y: -120,
+          scrollTrigger: { trigger: compRef.current || ".public-app-root", start: "top top", end: "bottom bottom", scrub: 1 }
+        });
+      }
 
       // Hero Entrance Timeline
-      const heroTl = gsap.timeline({ defaults: { ease: "power2.out" } });
-      heroTl.fromTo(".nav-capsule-wrapper", { y: -50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8 })
-            .fromTo(".hero-badge-pill", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, "-=0.4")
-            .fromTo(".hero-title-main", { y: 25, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7 }, "-=0.3")
-            .fromTo(".hero-subtitle", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6 }, "-=0.4")
-            .fromTo(".hero-btn-group > *", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, stagger: 0.1 }, "-=0.3")
-            .fromTo(".hero-spotlight-card", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8 }, "-=0.5");
+      if (document.querySelector(".nav-capsule-wrapper")) {
+        const heroTl = gsap.timeline({ defaults: { ease: "power2.out" } });
+        heroTl.fromTo(".nav-capsule-wrapper", { y: -50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8 })
+              .fromTo(".hero-badge-pill", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, "-=0.4")
+              .fromTo(".hero-title-main", { y: 25, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7 }, "-=0.3")
+              .fromTo(".hero-subtitle", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6 }, "-=0.4")
+              .fromTo(".hero-btn-group > *", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, stagger: 0.1 }, "-=0.3")
+              .fromTo(".hero-spotlight-card", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8 }, "-=0.5");
+      }
 
       // Section Headers Reveal
-      gsap.utils.toArray(".section-header").forEach(header => {
-        gsap.fromTo(header,
-          { y: 30, opacity: 0 },
+      const headers = document.querySelectorAll(".section-header");
+      if (headers.length > 0) {
+        gsap.utils.toArray(".section-header").forEach(header => {
+          gsap.fromTo(header,
+            { y: 30, opacity: 0 },
+            {
+              y: 0,
+              opacity: 1,
+              duration: 0.7,
+              ease: "power2.out",
+              scrollTrigger: {
+                trigger: header,
+                start: "top 88%",
+                toggleActions: "play none none none"
+              }
+            }
+          );
+        });
+      }
+
+      // Stream Card Entrance
+      if (document.querySelector(".stream-card-box")) {
+        gsap.fromTo(".stream-card-box",
+          { y: 35, opacity: 0 },
           {
             y: 0,
             opacity: 1,
-            duration: 0.7,
+            duration: 0.8,
             ease: "power2.out",
             scrollTrigger: {
-              trigger: header,
-              start: "top 88%",
+              trigger: ".stream-section",
+              start: "top 82%",
               toggleActions: "play none none none"
             }
           }
         );
-      });
-
-      // Stream Card Entrance
-      gsap.fromTo(".stream-card-box",
-        { y: 35, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.8,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: ".stream-section",
-            start: "top 82%",
-            toggleActions: "play none none none"
-          }
-        }
-      );
+      }
 
       // Subscriber Card Entrance
-      gsap.fromTo(".sub-card-container",
-        { y: 35, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.8,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: ".subscriber-section",
-            start: "top 82%",
-            toggleActions: "play none none none"
+      if (document.querySelector(".sub-card-container")) {
+        gsap.fromTo(".sub-card-container",
+          { y: 35, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.8,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: ".subscriber-section",
+              start: "top 82%",
+              toggleActions: "play none none none"
+            }
           }
-        }
-      );
+        );
 
-      // Subscriber Number Count-Up Trigger
-      ScrollTrigger.create({
-        trigger: ".subscriber-section",
-        start: "top 80%",
-        once: true,
-        onEnter: () => {
-          const target = dataRef.current?.subscribers?.count !== undefined ? dataRef.current.subscribers.count : 1245890;
-          let current = 0;
-          const duration = 1800;
-          const startTime = performance.now();
-          function animateCount(time) {
-            const elapsed = time - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const easeOut = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-            current = Math.floor(easeOut * target);
-            setDisplayCount(current);
-            if (progress < 1) requestAnimationFrame(animateCount);
-            else setDisplayCount(target);
+        // Subscriber Number Count-Up Trigger
+        ScrollTrigger.create({
+          trigger: ".subscriber-section",
+          start: "top 80%",
+          once: true,
+          onEnter: () => {
+            const target = dataRef.current?.subscribers?.count !== undefined ? dataRef.current.subscribers.count : 1245890;
+            let current = 0;
+            const duration = 1800;
+            const startTime = performance.now();
+            function animateCount(time) {
+              const elapsed = time - startTime;
+              const progress = Math.min(elapsed / duration, 1);
+              const easeOut = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+              current = Math.floor(easeOut * target);
+              setDisplayCount(current);
+              if (progress < 1) requestAnimationFrame(animateCount);
+              else setDisplayCount(target);
+            }
+            requestAnimationFrame(animateCount);
           }
-          requestAnimationFrame(animateCount);
-        }
-      });
+        });
+      }
 
       // Video Cards Entrance
-      gsap.fromTo(".video-card",
-        { y: 35, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.65,
-          stagger: 0.1,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: ".videos-section",
-            start: "top 82%",
-            toggleActions: "play none none none"
+      if (document.querySelectorAll(".video-card").length > 0) {
+        gsap.fromTo(".video-card",
+          { y: 35, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.65,
+            stagger: 0.1,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: ".videos-section",
+              start: "top 82%",
+              toggleActions: "play none none none"
+            }
           }
-        }
-      );
+        );
+      }
 
       // About Section Entrance
-      gsap.fromTo(".about-image-card",
-        { y: 35, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.8,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: ".about-section",
-            start: "top 82%",
-            toggleActions: "play none none none"
+      if (document.querySelector(".about-image-card")) {
+        gsap.fromTo(".about-image-card",
+          { y: 35, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.8,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: ".about-section",
+              start: "top 82%",
+              toggleActions: "play none none none"
+            }
           }
-        }
-      );
-      gsap.fromTo(".about-text-content",
-        { y: 35, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.8,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: ".about-section",
-            start: "top 82%",
-            toggleActions: "play none none none"
+        );
+      }
+      if (document.querySelector(".about-text-content")) {
+        gsap.fromTo(".about-text-content",
+          { y: 35, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.8,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: ".about-section",
+              start: "top 82%",
+              toggleActions: "play none none none"
+            }
           }
-        }
-      );
+        );
+      }
 
       // Support Section Entrance
-      gsap.fromTo(".support-wrapper",
-        { y: 35, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.8,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: ".support-section",
-            start: "top 82%",
-            toggleActions: "play none none none"
+      if (document.querySelector(".support-wrapper")) {
+        gsap.fromTo(".support-wrapper",
+          { y: 35, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.8,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: ".support-section",
+              start: "top 82%",
+              toggleActions: "play none none none"
+            }
           }
-        }
-      );
+        );
+      }
 
       // Social Cards Stagger Entrance
-      gsap.fromTo(".social-glass-card",
-        { y: 25, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.6,
-          stagger: 0.06,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: ".socials-section",
-            start: "top 85%",
-            toggleActions: "play none none none"
+      if (document.querySelectorAll(".social-glass-card").length > 0) {
+        gsap.fromTo(".social-glass-card",
+          { y: 25, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.6,
+            stagger: 0.06,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: ".socials-section",
+              start: "top 85%",
+              toggleActions: "play none none none"
+            }
           }
-        }
-      );
+        );
+      }
 
       setTimeout(() => ScrollTrigger.refresh(), 200);
     }, compRef);

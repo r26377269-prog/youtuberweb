@@ -15,7 +15,8 @@ const PORT = process.env.PORT || 3000;
 // Middleware Security & Body Parsing
 app.use(helmet({
   contentSecurityPolicy: false, // Allow external YouTube embeds and GSAP CDNs
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(cors({
   origin: '*',
@@ -34,7 +35,11 @@ if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
 }
 app.use(express.static(publicPath));
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+}, express.static(path.join(__dirname, '..', 'uploads')));
 
 // API Routes
 app.use('/api/public', apiRoutes);

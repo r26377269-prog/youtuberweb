@@ -15,7 +15,9 @@ import {
   deleteSocialFromSupabase
 } from '../lib/supabaseClient';
 
-const API_BASE_URL = '';
+const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? (window.location.port === '3000' ? '' : 'http://localhost:3000')
+  : 'https://youtuberweb.onrender.com';
 
 export default function AdminPortal() {
   const getStoredToken = () => {
