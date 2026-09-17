@@ -1001,30 +1001,26 @@ export default function AdminPortal() {
                   </label>
                 </div>
 
-                {subForm.is_api_enabled && (
-                  <>
-                    <div className="form-group">
-                      <label>YouTube Channel ID</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={subForm.youtube_channel_id || ''}
-                        onChange={e => setSubForm({ ...subForm, youtube_channel_id: e.target.value })}
-                        placeholder="e.g. UC..."
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>YouTube Data API Key</label>
-                      <input
-                        type="password"
-                        className="form-control"
-                        value={subForm.youtube_api_key || ''}
-                        onChange={e => setSubForm({ ...subForm, youtube_api_key: e.target.value })}
-                        placeholder="e.g. AIzaSy..."
-                      />
-                    </div>
-                  </>
-                )}
+                <div className="form-group">
+                  <label>YouTube Channel ID</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={subForm.youtube_channel_id || ''}
+                    onChange={e => setSubForm({ ...subForm, youtube_channel_id: e.target.value })}
+                    placeholder="e.g. UC..."
+                  />
+                </div>
+                <div className="form-group">
+                  <label>YouTube Data API Key</label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    value={subForm.youtube_api_key || ''}
+                    onChange={e => setSubForm({ ...subForm, youtube_api_key: e.target.value })}
+                    placeholder="e.g. AIzaSy..."
+                  />
+                </div>
 
                 <button type="submit" className="btn-admin-primary" style={{ marginTop: 10 }} disabled={isSaving}>
                   {isSaving ? <><span className="btn-spinner"></span> Saving...</> : <><i className="fa-solid fa-floppy-disk"></i> Save Subscriber Settings</>}
@@ -1319,8 +1315,8 @@ export default function AdminPortal() {
       {/* SUB MODAL */}
       {showSubModal && (
         <div className="modal-backdrop">
-          <div className="modal-content">
-            <h2 className="card-title" style={{ marginBottom: 20 }}><i className="fa-solid fa-users"></i> Edit Subscriber Counter</h2>
+          <div className="modal-content" style={{ maxWidth: 580 }}>
+            <h2 className="card-title" style={{ marginBottom: 20 }}><i className="fa-solid fa-users"></i> Edit Subscriber Counter Table</h2>
             <form onSubmit={handleSaveSub}>
               <div className="form-group">
                 <label>Live Subscriber Count</label>
@@ -1328,16 +1324,51 @@ export default function AdminPortal() {
               </div>
               <div className="form-group">
                 <label>Counter Font Style</label>
-                <select className="form-control" value={subForm.counter_font} onChange={e => setSubForm({ ...subForm, counter_font: e.target.value })}>
+                <select className="form-control" value={subForm.counter_font || "'Bebas Neue', sans-serif"} onChange={e => setSubForm({ ...subForm, counter_font: e.target.value })}>
                   <option value="'Bebas Neue', sans-serif">Bebas Neue (Bold Display)</option>
                   <option value="'Outfit', sans-serif">Outfit (Clean Geometric)</option>
                   <option value="'Space Grotesk', sans-serif">Space Grotesk (Tech Modern)</option>
                   <option value="'Orbitron', sans-serif">Orbitron (Futuristic Gaming)</option>
                   <option value="'Syne', sans-serif">Syne (Artistic Heavy)</option>
+                  <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans (Standard)</option>
                 </select>
               </div>
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f8fafc', padding: 12, borderRadius: 10 }}>
+                <input
+                  type="checkbox"
+                  id="sub_modal_is_api_enabled"
+                  checked={Boolean(subForm.is_api_enabled)}
+                  onChange={e => setSubForm({ ...subForm, is_api_enabled: e.target.checked })}
+                  style={{ width: 18, height: 18 }}
+                />
+                <label htmlFor="sub_modal_is_api_enabled" style={{ margin: 0, textTransform: 'none', color: '#1e293b', fontWeight: 600 }}>
+                  Enable Automatic YouTube API Sync
+                </label>
+              </div>
+              <div className="form-group">
+                <label>YouTube Channel ID</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={subForm.youtube_channel_id || ''}
+                  onChange={e => setSubForm({ ...subForm, youtube_channel_id: e.target.value })}
+                  placeholder="e.g. UCxxxxxxxx"
+                />
+              </div>
+              <div className="form-group">
+                <label>YouTube Data API Key</label>
+                <input
+                  type="password"
+                  className="form-control"
+                  value={subForm.youtube_api_key || ''}
+                  onChange={e => setSubForm({ ...subForm, youtube_api_key: e.target.value })}
+                  placeholder="API Key..."
+                />
+              </div>
               <div style={{ display: 'flex', gap: 15, marginTop: 25 }}>
-                <button type="submit" className="btn-admin-primary">Save Subscriber Table</button>
+                <button type="submit" className="btn-admin-primary" disabled={isSaving}>
+                  {isSaving ? <><span className="btn-spinner"></span> Saving...</> : 'Save Subscriber Table'}
+                </button>
                 <button type="button" className="btn-sm btn-delete" onClick={() => setShowSubModal(false)}>Cancel</button>
               </div>
             </form>

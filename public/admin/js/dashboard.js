@@ -476,6 +476,93 @@ function saveInlineSubCount() {
 }
 window.saveInlineSubCount = saveInlineSubCount;
 
+function saveInlineChannelId() {
+  const inputEl = document.getElementById('inline-channel-id-input');
+  if (!inputEl) return;
+  const newChannelId = inputEl.value.trim();
+
+  if (!currentDashboardData) currentDashboardData = {};
+  if (!currentDashboardData.subscribers) {
+    currentDashboardData.subscribers = { count: 1245890, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: false, youtube_channel_id: newChannelId };
+  } else {
+    currentDashboardData.subscribers.youtube_channel_id = newChannelId;
+  }
+
+  localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
+  renderSubscribersTable();
+  alert('YouTube Channel ID updated successfully!');
+
+  const token = getAdminToken();
+  if (token) {
+    fetch(API_BASE_URL + '/api/admin/subscribers', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(currentDashboardData.subscribers)
+    }).catch(err => console.warn('API sync warning:', err));
+  }
+}
+window.saveInlineChannelId = saveInlineChannelId;
+
+function saveInlineApiKey() {
+  const inputEl = document.getElementById('inline-api-key-input');
+  if (!inputEl) return;
+  const newApiKey = inputEl.value.trim();
+
+  if (!currentDashboardData) currentDashboardData = {};
+  if (!currentDashboardData.subscribers) {
+    currentDashboardData.subscribers = { count: 1245890, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: false, youtube_api_key: newApiKey };
+  } else {
+    currentDashboardData.subscribers.youtube_api_key = newApiKey;
+  }
+
+  localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
+  renderSubscribersTable();
+  alert('YouTube API Key updated successfully!');
+
+  const token = getAdminToken();
+  if (token) {
+    fetch(API_BASE_URL + '/api/admin/subscribers', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(currentDashboardData.subscribers)
+    }).catch(err => console.warn('API sync warning:', err));
+  }
+}
+window.saveInlineApiKey = saveInlineApiKey;
+
+function toggleSubApiStatus() {
+  if (!currentDashboardData) currentDashboardData = {};
+  if (!currentDashboardData.subscribers) {
+    currentDashboardData.subscribers = { count: 1245890, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: true };
+  } else {
+    currentDashboardData.subscribers.is_api_enabled = !currentDashboardData.subscribers.is_api_enabled;
+  }
+
+  localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
+  renderSubscribersTable();
+  const statusStr = currentDashboardData.subscribers.is_api_enabled ? 'Enabled' : 'Disabled';
+  alert('YouTube API Sync status changed to ' + statusStr + '!');
+
+  const token = getAdminToken();
+  if (token) {
+    fetch(API_BASE_URL + '/api/admin/subscribers', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(currentDashboardData.subscribers)
+    }).catch(err => console.warn('API sync warning:', err));
+  }
+}
+window.toggleSubApiStatus = toggleSubApiStatus;
+
 function renderSubscribersTable() {
   const tbody = document.getElementById('subscribers-table-body');
   if (!tbody) return;
@@ -514,7 +601,7 @@ function renderSubscribersTable() {
       </td>
       <td>Font typography applied to sub counter display</td>
       <td>
-        <button class="btn-sm btn-edit" onclick="openEditSubModal()"><i class="fa-solid fa-pen"></i> Change Font</button>
+        <button class="btn-sm btn-edit" onclick="openEditSubModal('font')"><i class="fa-solid fa-pen"></i> Change Font</button>
       </td>
     </tr>
     <tr>
@@ -526,29 +613,39 @@ function renderSubscribersTable() {
       </td>
       <td>Automatic background sync with YouTube Data API</td>
       <td>
-        <button class="btn-sm btn-edit" onclick="openEditSubModal()"><i class="fa-solid fa-sliders"></i> Toggle</button>
+        <button class="btn-sm btn-edit" onclick="toggleSubApiStatus()"><i class="fa-solid fa-sliders"></i> Toggle</button>
       </td>
     </tr>
     <tr>
       <td><strong><i class="fa-solid fa-id-badge" style="color:var(--sky-accent); margin-right:8px;"></i> YouTube Channel ID</strong></td>
-      <td><code style="background: #f1f5f9; padding: 4px 10px; border-radius: 6px; color: #334155; font-weight: 600;">${s.youtube_channel_id || 'Not configured'}</code></td>
+      <td>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="text" id="inline-channel-id-input" value="${s.youtube_channel_id || ''}" placeholder="e.g. UCxxxxxxxx" style="padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 180px;" />
+          <button class="btn-sm btn-edit" onclick="saveInlineChannelId()"><i class="fa-solid fa-check"></i> Save</button>
+        </div>
+      </td>
       <td>Channel ID parameter for API sync</td>
       <td>
-        <button class="btn-sm btn-edit" onclick="openEditSubModal()"><i class="fa-solid fa-pen"></i> Edit</button>
+        <button class="btn-sm btn-edit" onclick="openEditSubModal('channel_id')"><i class="fa-solid fa-pen"></i> Edit Modal</button>
       </td>
     </tr>
     <tr>
       <td><strong><i class="fa-solid fa-key" style="color:var(--sky-accent); margin-right:8px;"></i> YouTube Data API Key</strong></td>
-      <td><code style="background: #f1f5f9; padding: 4px 10px; border-radius: 6px; color: #334155; font-weight: 600;">${s.youtube_api_key ? '••••••••••••' : 'Not configured'}</code></td>
+      <td>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="password" id="inline-api-key-input" value="${s.youtube_api_key || ''}" placeholder="API Key..." style="padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 180px;" />
+          <button class="btn-sm btn-edit" onclick="saveInlineApiKey()"><i class="fa-solid fa-check"></i> Save</button>
+        </div>
+      </td>
       <td>Google API key for channel stats</td>
       <td>
-        <button class="btn-sm btn-edit" onclick="openEditSubModal()"><i class="fa-solid fa-pen"></i> Edit</button>
+        <button class="btn-sm btn-edit" onclick="openEditSubModal('api_key')"><i class="fa-solid fa-pen"></i> Edit Modal</button>
       </td>
     </tr>
   `;
 }
 
-function openEditSubModal() {
+function openEditSubModal(targetField) {
   const s = (currentDashboardData && currentDashboardData.subscribers) ? currentDashboardData.subscribers : { count: 1245890, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: false };
   
   const countInput = document.getElementById('sub-count-input');
@@ -564,7 +661,16 @@ function openEditSubModal() {
   if (channelInput) channelInput.value = s.youtube_channel_id || '';
   if (apiKeyInput) apiKeyInput.value = s.youtube_api_key || '';
   if (subModal) subModal.style.display = 'grid';
+
+  if (targetField === 'channel_id' && channelInput) {
+    setTimeout(() => { channelInput.focus(); channelInput.select(); }, 150);
+  } else if (targetField === 'api_key' && apiKeyInput) {
+    setTimeout(() => { apiKeyInput.focus(); apiKeyInput.select(); }, 150);
+  } else if (targetField === 'font' && fontSelect) {
+    setTimeout(() => { fontSelect.focus(); }, 150);
+  }
 }
+window.openEditSubModal = openEditSubModal;
 
 function closeSubModal() {
   const subModal = document.getElementById('sub-modal');
