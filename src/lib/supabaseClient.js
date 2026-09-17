@@ -33,22 +33,22 @@ export const saveLocalSiteData = (data) => {
 export const isDefaultSupport = (sup) => false;
 export const isDefaultSettings = (st) => false;
 
-export const mergeWithUserPriority = (existing, incoming) => {
-  if (!incoming) return existing || {};
-  if (!existing || Object.keys(existing).length === 0) return incoming;
+export const mergeWithUserPriority = (localData, cloudData) => {
+  if (!cloudData || Object.keys(cloudData).length === 0) return localData || {};
+  if (!localData || Object.keys(localData).length === 0) return cloudData;
 
-  const mergedSettings = incoming.settings || existing.settings || {};
-  const mergedSupport = incoming.support || existing.support || {};
-  const mergedSubscribers = incoming.subscribers || existing.subscribers || {};
-  const mergedStreams = Array.isArray(incoming.streams) && incoming.streams.length > 0 ? incoming.streams : (existing.streams || []);
-  const mergedVideos = Array.isArray(incoming.videos) && incoming.videos.length > 0 ? incoming.videos : (existing.videos || []);
-  const mergedSocials = Array.isArray(incoming.socials) && incoming.socials.length > 0 ? incoming.socials : (existing.socials || []);
+  // Cloud Data (Supabase) takes precedence for multi-device sync across all devices!
+  const mergedSettings = { ...(localData.settings || {}), ...(cloudData.settings || {}) };
+  const mergedSupport = { ...(localData.support || {}), ...(cloudData.support || {}) };
+  const mergedSubscribers = { ...(localData.subscribers || {}), ...(cloudData.subscribers || {}) };
+  const mergedStreams = Array.isArray(cloudData.streams) && cloudData.streams.length > 0 ? cloudData.streams : (localData.streams || []);
+  const mergedVideos = Array.isArray(cloudData.videos) && cloudData.videos.length > 0 ? cloudData.videos : (localData.videos || []);
+  const mergedSocials = Array.isArray(cloudData.socials) && cloudData.socials.length > 0 ? cloudData.socials : (localData.socials || []);
 
   return {
-    ...existing,
-    settings: { ...mergedSettings, ...existing.settings },
-    support: { ...mergedSupport, ...existing.support },
-    subscribers: { ...mergedSubscribers, ...existing.subscribers },
+    settings: mergedSettings,
+    support: mergedSupport,
+    subscribers: mergedSubscribers,
     streams: mergedStreams,
     videos: mergedVideos,
     socials: mergedSocials
@@ -69,25 +69,24 @@ export const fetchAllSiteDataFromSupabase = async () => {
     ]);
 
     const settings = settingsRes.status === 'fulfilled' && settingsRes.value?.data ? settingsRes.value.data : null;
-    const streams = streamsRes.status === 'fulfilled' && Array.isArray(streamsRes.value?.data) && streamsRes.value.data.length > 0 ? streamsRes.value.data : null;
-    const videos = videosRes.status === 'fulfilled' && Array.isArray(videosRes.value?.data) && videosRes.value.data.length > 0 ? videosRes.value.data : null;
+    const streams = streamsRes.status === 'fulfilled' && Array.isArray(streamsRes.value?.data) ? streamsRes.value.data : null;
+    const videos = videosRes.status === 'fulfilled' && Array.isArray(videosRes.value?.data) ? videosRes.value.data : null;
     const subscribers = subsRes.status === 'fulfilled' && subsRes.value?.data ? subsRes.value.data : null;
     const support = supportRes.status === 'fulfilled' && supportRes.value?.data ? supportRes.value.data : null;
-    const socials = socialsRes.status === 'fulfilled' && Array.isArray(socialsRes.value?.data) && socialsRes.value.data.length > 0 ? socialsRes.value.data : null;
-
-    if (!settings && !streams && !videos && !subscribers && !support && !socials) {
-      return localData;
-    }
+    const socials = socialsRes.status === 'fulfilled' && Array.isArray(socialsRes.value?.data) ? socialsRes.value.data : null;
 
     const result = {};
     if (settings) result.settings = settings;
-    if (streams) result.streams = streams;
-    if (videos) result.videos = videos;
+    if (streams !== null) result.streams = streams;
+    if (videos !== null) result.videos = videos;
     if (subscribers) result.subscribers = subscribers;
     if (support) result.support = support;
-    if (socials) result.socials = socials;
+    if (socials !== null) result.socials = socials;
 
     const merged = mergeWithUserPriority(localData || {}, result);
+    if (Object.keys(result).length > 0) {
+      saveLocalSiteData(merged);
+    }
     return merged;
   } catch (err) {
     console.warn('[Supabase Direct Fetch Error]:', err);
@@ -111,23 +110,20 @@ export const saveStreamToSupabase = async (streamData, editId) => {
 
   try {
     if (editId) {
-      const numId = Number(editId);
-      const targetId = !isNaN(numId) ? numId : editId;
-
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from('streams')
         .update(payload)
-        .eq('id', targetId)
+        .eq('id', editId)
         .select();
 
-      if (error || !data || data.length === 0) {
-        const insertObj = typeof targetId === 'number' ? { id: targetId, ...payload } : { ...payload };
-        const { data: upsertData, error: upsertErr } = await supabase
+      if (error) {
+        console.warn('[Supabase saveStream update warning]:', error.message);
+        const { data: insData, error: insErr } = await supabase
           .from('streams')
-          .upsert([insertObj])
+          .insert([payload])
           .select();
-        if (upsertErr) console.warn('[Supabase saveStream upsert warning]:', upsertErr.message);
-        return upsertData;
+        if (insErr) console.warn('[Supabase saveStream insert warning]:', insErr.message);
+        return insData;
       }
       return data;
     } else {
@@ -147,12 +143,10 @@ export const saveStreamToSupabase = async (streamData, editId) => {
 export const deleteStreamFromSupabase = async (streamId) => {
   if (!supabase) return null;
   try {
-    const numId = Number(streamId);
-    const targetId = !isNaN(numId) ? numId : streamId;
     const { data, error } = await supabase
       .from('streams')
       .delete()
-      .eq('id', targetId);
+      .eq('id', streamId);
     if (error) console.warn('[Supabase deleteStream error]:', error.message);
     return data;
   } catch (err) {
@@ -175,23 +169,20 @@ export const saveVideoToSupabase = async (videoData, editId) => {
 
   try {
     if (editId) {
-      const numId = Number(editId);
-      const targetId = !isNaN(numId) ? numId : editId;
-
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from('videos')
         .update(payload)
-        .eq('id', targetId)
+        .eq('id', editId)
         .select();
 
-      if (error || !data || data.length === 0) {
-        const insertObj = typeof targetId === 'number' ? { id: targetId, ...payload } : { ...payload };
-        const { data: upsertData, error: upsertErr } = await supabase
+      if (error) {
+        console.warn('[Supabase saveVideo update warning]:', error.message);
+        const { data: insData, error: insErr } = await supabase
           .from('videos')
-          .upsert([insertObj])
+          .insert([payload])
           .select();
-        if (upsertErr) console.warn('[Supabase saveVideo upsert warning]:', upsertErr.message);
-        return upsertData;
+        if (insErr) console.warn('[Supabase saveVideo insert warning]:', insErr.message);
+        return insData;
       }
       return data;
     } else {
@@ -211,12 +202,10 @@ export const saveVideoToSupabase = async (videoData, editId) => {
 export const toggleTrendingVideoInSupabase = async (vidId, currentStatus) => {
   if (!supabase) return null;
   try {
-    const numId = Number(vidId);
-    const targetId = !isNaN(numId) ? numId : vidId;
     const { data, error } = await supabase
       .from('videos')
       .update({ is_trending: !currentStatus })
-      .eq('id', targetId)
+      .eq('id', vidId)
       .select();
     if (error) console.warn('[Supabase toggleTrending error]:', error.message);
     return data;
@@ -229,12 +218,10 @@ export const toggleTrendingVideoInSupabase = async (vidId, currentStatus) => {
 export const deleteVideoFromSupabase = async (vidId) => {
   if (!supabase) return null;
   try {
-    const numId = Number(vidId);
-    const targetId = !isNaN(numId) ? numId : vidId;
     const { data, error } = await supabase
       .from('videos')
       .delete()
-      .eq('id', targetId);
+      .eq('id', vidId);
     if (error) console.warn('[Supabase deleteVideo error]:', error.message);
     return data;
   } catch (err) {
@@ -343,12 +330,10 @@ export const addSocialToSupabase = async (socialData) => {
 export const deleteSocialFromSupabase = async (socialId) => {
   if (!supabase) return null;
   try {
-    const numId = Number(socialId);
-    const targetId = !isNaN(numId) ? numId : socialId;
     const { data, error } = await supabase
       .from('social_links')
       .delete()
-      .eq('id', targetId);
+      .eq('id', socialId);
     if (error) console.warn('[Supabase deleteSocial error]:', error.message);
     return data;
   } catch (err) {
