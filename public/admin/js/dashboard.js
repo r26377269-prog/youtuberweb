@@ -69,8 +69,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupNavigation();
 });
 
+function saveCurrentDataToLocal(data) {
+  try {
+    if (data) localStorage.setItem('youtuber_site_data', JSON.stringify(data));
+  } catch (e) {}
+}
+
+function getLocalSiteDataObj() {
+  try {
+    const raw = localStorage.getItem('youtuber_site_data');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 // Fetch all dashboard data from Admin API
 async function loadDashboardData() {
+  const local = getLocalSiteDataObj();
   const defaultData = {
     settings: { website_title: 'CREATOR • Official YouTuber Website', creator_name: 'ALEX VANCE' },
     streams: [],
@@ -80,7 +96,15 @@ async function loadDashboardData() {
     socials: []
   };
 
-  currentDashboardData = defaultData;
+  currentDashboardData = local || defaultData;
+
+  renderOverviewStats();
+  renderStreamsTable();
+  renderVideosTable();
+  renderSubscribersTable();
+  populateSupportForm();
+  renderSocialsTable();
+  populateSettingsForm();
 
   const token = getAdminToken();
   if (token) {
@@ -91,7 +115,8 @@ async function loadDashboardData() {
       const json = await res.json();
 
       if (json.success && json.data) {
-        currentDashboardData = json.data;
+        currentDashboardData = { ...(local || {}), ...json.data };
+        saveCurrentDataToLocal(currentDashboardData);
         renderOverviewStats();
         renderStreamsTable();
         renderVideosTable();

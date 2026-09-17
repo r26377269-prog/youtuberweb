@@ -2,13 +2,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import Lenis from '@studio-freight/lenis';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { fetchAllSiteDataFromSupabase, mergeWithUserPriority } from '../lib/supabaseClient';
+import { fetchAllSiteDataFromSupabase, mergeWithUserPriority, getLocalSiteData } from '../lib/supabaseClient';
 
 gsap.registerPlugin(ScrollTrigger);
 gsap.config({ nullTargetWarn: false });
 
 export default function PublicWebsite() {
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(() => getLocalSiteData());
   const [typingText, setTypingText] = useState('');
   const [navScrolled, setNavScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -82,31 +82,26 @@ export default function PublicWebsite() {
       : 'https://youtuberweb.onrender.com';
 
     const refreshData = async () => {
+      const local = getLocalSiteData();
       let fresh = await fetchAllSiteDataFromSupabase();
+
+      let combined = mergeWithUserPriority(local || {}, fresh || {});
 
       try {
         const res = await fetch(`${API_BASE_URL}/api/public/data`);
         const json = await res.json();
         if (json.success && json.data) {
-          const combined = {
-            ...json.data,
-            ...(fresh || {})
-          };
-          if (combined.subscribers && combined.subscribers.count !== undefined) {
-            setDisplayCount(Number(combined.subscribers.count));
-          }
-          setData(combined);
-          return;
+          combined = mergeWithUserPriority(combined, json.data);
         }
       } catch (err) {
-        // REST API offline, rely on Supabase Cloud
+        // REST API offline, rely on Supabase Cloud & Local Storage
       }
 
-      if (fresh) {
-        if (fresh.subscribers && fresh.subscribers.count !== undefined) {
-          setDisplayCount(Number(fresh.subscribers.count));
+      if (combined && Object.keys(combined).length > 0) {
+        if (combined.subscribers && combined.subscribers.count !== undefined) {
+          setDisplayCount(Number(combined.subscribers.count));
         }
-        setData(prev => ({ ...(prev || {}), ...fresh }));
+        setData(combined);
       }
     };
 

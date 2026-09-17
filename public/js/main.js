@@ -245,12 +245,27 @@ function initSmoothGsapAnimations() {
 
 // --- DYNAMIC CONTENT LOADER & API RENDERER ---
 async function loadPublicContent() {
+  let localData = null;
+  try {
+    const raw = localStorage.getItem('youtuber_site_data');
+    if (raw) localData = JSON.parse(raw);
+  } catch (e) {}
+
+  if (localData) {
+    if (localData.settings) renderSettings(localData.settings);
+    if (localData.streams) renderLiveStream(localData.streams);
+    if (localData.subscribers) renderSubscribers(localData.subscribers);
+    if (localData.videos) renderVideos(localData.videos);
+    if (localData.support) renderSupport(localData.support);
+    if (localData.socials) renderSocials(localData.socials);
+  }
+
   try {
     const res = await fetch('/api/public/data');
     const json = await res.json();
 
     if (json.success && json.data) {
-      const data = json.data;
+      const data = { ...(localData || {}), ...json.data };
       renderSettings(data.settings);
       renderLiveStream(data.streams);
       renderSubscribers(data.subscribers);
@@ -259,7 +274,7 @@ async function loadPublicContent() {
       renderSocials(data.socials);
     }
   } catch (err) {
-    console.error('Failed to load public website data:', err);
+    console.warn('Failed to load API public website data, using local:', err);
   }
 }
 

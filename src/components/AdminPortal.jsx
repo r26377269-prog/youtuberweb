@@ -12,12 +12,12 @@ import {
   saveSupportToSupabase,
   saveSettingsToSupabase,
   addSocialToSupabase,
-  deleteSocialFromSupabase
+  deleteSocialFromSupabase,
+  saveLocalSiteData,
+  getLocalSiteData
 } from '../lib/supabaseClient';
 
-const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  ? (window.location.port === '3000' ? '' : 'http://localhost:3000')
-  : 'https://youtuberweb.onrender.com';
+const API_BASE_URL = 'https://youtuberweb.onrender.com';
 
 export default function AdminPortal() {
   const getStoredToken = () => {
@@ -67,7 +67,7 @@ export default function AdminPortal() {
   const [streamForm, setStreamForm] = useState({
     title: '',
     description: '',
-    thumbnail_url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+    thumbnail_url: '',
     scheduled_date: new Date().toISOString().split('T')[0],
     scheduled_time: '19:00',
     youtube_url: '',
@@ -84,7 +84,7 @@ export default function AdminPortal() {
   });
 
   const [subForm, setSubForm] = useState({
-    count: 1245890,
+    count: 0,
     is_api_enabled: false,
     youtube_channel_id: '',
     youtube_api_key: '',
@@ -92,18 +92,18 @@ export default function AdminPortal() {
   });
 
   const [supportForm, setSupportForm] = useState({
-    upi_id: 'creator@upi',
-    creator_name: 'ALEX VANCE',
-    qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=creator@upi%26pn=ALEX%20VANCE%26cu=INR',
+    upi_id: '',
+    creator_name: '',
+    qr_code_url: '',
     default_amount: 100,
-    support_message: 'Support the channel directly! Every contribution helps improve our stream hardware and production quality.'
+    support_message: ''
   });
 
   const [settingsForm, setSettingsForm] = useState({
-    website_title: 'CREATOR • Official YouTuber Website',
-    creator_name: 'ALEX VANCE',
-    hero_welcome_text: 'WELCOME TO THE CHANNEL',
-    hero_typing_texts: 'GAMING, LIVE STREAMS, TECH REVIEWS, DAILY VLOGS',
+    website_title: '',
+    creator_name: '',
+    hero_welcome_text: '',
+    hero_typing_texts: '',
     about_text: '',
     profile_image: ''
   });
@@ -132,8 +132,9 @@ export default function AdminPortal() {
   };
 
   const loadDashboard = async () => {
+    const localData = getLocalSiteData() || {};
     const sbData = await fetchAllSiteDataFromSupabase();
-    let finalData = sbData || {};
+    let finalData = { ...localData, ...(sbData || {}) };
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/dashboard-data`, {
@@ -141,7 +142,7 @@ export default function AdminPortal() {
       });
       const json = await res.json();
       if (json.success && json.data) {
-        finalData = { ...json.data, ...(sbData || {}) };
+        finalData = { ...localData, ...json.data, ...(sbData || {}) };
       }
     } catch (err) {
       console.warn('API load warning:', err);
@@ -149,6 +150,7 @@ export default function AdminPortal() {
 
     if (finalData && Object.keys(finalData).length > 0) {
       setDashboardData(finalData);
+      saveLocalSiteData(finalData);
       if (finalData.subscribers) setSubForm(finalData.subscribers);
       if (finalData.support) setSupportForm(finalData.support);
       if (finalData.settings) {
@@ -254,7 +256,7 @@ export default function AdminPortal() {
     setStreamForm({
       title: '',
       description: '',
-      thumbnail_url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+      thumbnail_url: '',
       scheduled_date: new Date().toISOString().split('T')[0],
       scheduled_time: '19:00',
       youtube_url: '',
@@ -297,7 +299,9 @@ export default function AdminPortal() {
       } else {
         list.unshift(newStream);
       }
-      return { ...current, streams: list };
+      const updated = { ...current, streams: list };
+      saveLocalSiteData(updated);
+      return updated;
     });
 
     try {
@@ -328,10 +332,14 @@ export default function AdminPortal() {
 
   const deleteStream = async (id) => {
     if (!window.confirm('Delete this stream entry?')) return;
-    setDashboardData(prev => ({
-      ...(prev || {}),
-      streams: (Array.isArray(prev?.streams) ? prev.streams : []).filter(s => s.id.toString() !== id.toString())
-    }));
+    setDashboardData(prev => {
+      const updated = {
+        ...(prev || {}),
+        streams: (Array.isArray(prev?.streams) ? prev.streams : []).filter(s => s.id.toString() !== id.toString())
+      };
+      saveLocalSiteData(updated);
+      return updated;
+    });
 
     try {
       await deleteStreamFromSupabase(id);
@@ -391,7 +399,9 @@ export default function AdminPortal() {
       } else {
         list.unshift(newVid);
       }
-      return { ...current, videos: list };
+      const updated = { ...current, videos: list };
+      saveLocalSiteData(updated);
+      return updated;
     });
 
     try {
@@ -421,10 +431,14 @@ export default function AdminPortal() {
   };
 
   const toggleTrending = async (vidId, currentStatus) => {
-    setDashboardData(prev => ({
-      ...(prev || {}),
-      videos: (Array.isArray(prev?.videos) ? prev.videos : []).map(v => v.id.toString() === vidId.toString() ? { ...v, is_trending: !currentStatus } : v)
-    }));
+    setDashboardData(prev => {
+      const updated = {
+        ...(prev || {}),
+        videos: (Array.isArray(prev?.videos) ? prev.videos : []).map(v => v.id.toString() === vidId.toString() ? { ...v, is_trending: !currentStatus } : v)
+      };
+      saveLocalSiteData(updated);
+      return updated;
+    });
 
     try {
       await toggleTrendingVideoInSupabase(vidId, currentStatus);
@@ -449,10 +463,14 @@ export default function AdminPortal() {
 
   const deleteVideo = async (id) => {
     if (!window.confirm('Delete this video entry?')) return;
-    setDashboardData(prev => ({
-      ...(prev || {}),
-      videos: (Array.isArray(prev?.videos) ? prev.videos : []).filter(v => v.id.toString() !== id.toString())
-    }));
+    setDashboardData(prev => {
+      const updated = {
+        ...(prev || {}),
+        videos: (Array.isArray(prev?.videos) ? prev.videos : []).filter(v => v.id.toString() !== id.toString())
+      };
+      saveLocalSiteData(updated);
+      return updated;
+    });
 
     try {
       await deleteVideoFromSupabase(id);
@@ -487,10 +505,14 @@ export default function AdminPortal() {
       count: Number(subForm.count) || 0
     };
 
-    setDashboardData(prev => ({
-      ...(prev || {}),
-      subscribers: updatedSub
-    }));
+    setDashboardData(prev => {
+      const updated = {
+        ...(prev || {}),
+        subscribers: updatedSub
+      };
+      saveLocalSiteData(updated);
+      return updated;
+    });
 
     try {
       await saveSubscribersToSupabase(updatedSub);
@@ -522,10 +544,14 @@ export default function AdminPortal() {
   const handleSaveSupport = async (e) => {
     e.preventDefault();
     setIsSaving(true);
-    setDashboardData(prev => ({
-      ...(prev || {}),
-      support: supportForm
-    }));
+    setDashboardData(prev => {
+      const updated = {
+        ...(prev || {}),
+        support: supportForm
+      };
+      saveLocalSiteData(updated);
+      return updated;
+    });
 
     try {
       await saveSupportToSupabase(supportForm);
@@ -562,10 +588,14 @@ export default function AdminPortal() {
       hero_typing_texts: typingList
     };
 
-    setDashboardData(prev => ({
-      ...(prev || {}),
-      settings: payload
-    }));
+    setDashboardData(prev => {
+      const updated = {
+        ...(prev || {}),
+        settings: payload
+      };
+      saveLocalSiteData(updated);
+      return updated;
+    });
 
     try {
       await saveSettingsToSupabase(payload);
@@ -600,10 +630,14 @@ export default function AdminPortal() {
       is_active: true
     };
 
-    setDashboardData(prev => ({
-      ...(prev || {}),
-      socials: [...(Array.isArray(prev?.socials) ? prev.socials : []), newSocial]
-    }));
+    setDashboardData(prev => {
+      const updated = {
+        ...(prev || {}),
+        socials: [...(Array.isArray(prev?.socials) ? prev.socials : []), newSocial]
+      };
+      saveLocalSiteData(updated);
+      return updated;
+    });
 
     try {
       await addSocialToSupabase(socialForm);
@@ -632,10 +666,14 @@ export default function AdminPortal() {
 
   const deleteSocial = async (id) => {
     if (!window.confirm('Delete social link?')) return;
-    setDashboardData(prev => ({
-      ...(prev || {}),
-      socials: (Array.isArray(prev?.socials) ? prev.socials : []).filter(s => s.id.toString() !== id.toString())
-    }));
+    setDashboardData(prev => {
+      const updated = {
+        ...(prev || {}),
+        socials: (Array.isArray(prev?.socials) ? prev.socials : []).filter(s => s.id.toString() !== id.toString())
+      };
+      saveLocalSiteData(updated);
+      return updated;
+    });
 
     try {
       await deleteSocialFromSupabase(id);

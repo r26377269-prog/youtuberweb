@@ -128,20 +128,33 @@ function ensureLocalDb() {
   }
 }
 
+let inMemoryCache = null;
+
 function readLocalDb() {
   ensureLocalDb();
   try {
     const raw = fs.readFileSync(localDbPath, 'utf8');
-    return JSON.parse(raw);
+    const diskData = JSON.parse(raw);
+    if (!inMemoryCache) {
+      inMemoryCache = diskData;
+    } else {
+      inMemoryCache = { ...diskData, ...inMemoryCache };
+    }
+    return inMemoryCache;
   } catch (err) {
     console.error('Error reading local DB:', err);
-    return {};
+    return inMemoryCache || {};
   }
 }
 
 function writeLocalDb(data) {
   ensureLocalDb();
-  fs.writeFileSync(localDbPath, JSON.stringify(data, null, 2));
+  inMemoryCache = { ...(inMemoryCache || {}), ...data };
+  try {
+    fs.writeFileSync(localDbPath, JSON.stringify(inMemoryCache, null, 2));
+  } catch (err) {
+    console.warn('Could not write to local store.json (read-only filesystem?), kept in memory:', err.message);
+  }
 }
 
 module.exports = {

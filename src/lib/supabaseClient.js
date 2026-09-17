@@ -7,8 +7,31 @@ export const supabase = (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
-export const isDefaultSupport = (sup) => !sup || !sup.upi_id || sup.upi_id === 'creator@upi' || sup.upi_id.includes('fam_2f43d815507f5ee1714a857d7454c93c7e6e661e');
-export const isDefaultSettings = (st) => !st || st.creator_name === 'ALEX VANCE';
+export const STORAGE_KEY = 'youtuber_site_data';
+
+export const getLocalSiteData = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+export const saveLocalSiteData = (data) => {
+  if (typeof window === 'undefined' || !data) return;
+  try {
+    const existing = getLocalSiteData() || {};
+    const updated = { ...existing, ...data };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.warn('LocalStorage save warning:', e);
+  }
+};
+
+export const isDefaultSupport = (sup) => false;
+export const isDefaultSettings = (st) => false;
 
 export const mergeWithUserPriority = (existing, incoming) => {
   if (!incoming) return existing || {};
@@ -23,9 +46,9 @@ export const mergeWithUserPriority = (existing, incoming) => {
 
   return {
     ...existing,
-    settings: mergedSettings,
-    support: mergedSupport,
-    subscribers: mergedSubscribers,
+    settings: { ...mergedSettings, ...existing.settings },
+    support: { ...mergedSupport, ...existing.support },
+    subscribers: { ...mergedSubscribers, ...existing.subscribers },
     streams: mergedStreams,
     videos: mergedVideos,
     socials: mergedSocials
@@ -33,7 +56,8 @@ export const mergeWithUserPriority = (existing, incoming) => {
 };
 
 export const fetchAllSiteDataFromSupabase = async () => {
-  if (!supabase) return null;
+  const localData = getLocalSiteData();
+  if (!supabase) return localData;
   try {
     const [settingsRes, streamsRes, videosRes, subsRes, supportRes, socialsRes] = await Promise.allSettled([
       supabase.from('settings').select('*').single(),
@@ -52,7 +76,7 @@ export const fetchAllSiteDataFromSupabase = async () => {
     const socials = socialsRes.status === 'fulfilled' && Array.isArray(socialsRes.value?.data) && socialsRes.value.data.length > 0 ? socialsRes.value.data : null;
 
     if (!settings && !streams && !videos && !subscribers && !support && !socials) {
-      return null;
+      return localData;
     }
 
     const result = {};
@@ -63,10 +87,11 @@ export const fetchAllSiteDataFromSupabase = async () => {
     if (support) result.support = support;
     if (socials) result.socials = socials;
 
-    return result;
+    const merged = mergeWithUserPriority(localData || {}, result);
+    return merged;
   } catch (err) {
     console.warn('[Supabase Direct Fetch Error]:', err);
-    return null;
+    return localData;
   }
 };
 
@@ -77,7 +102,7 @@ export const saveStreamToSupabase = async (streamData, editId) => {
   const payload = {
     title: streamData.title,
     description: streamData.description || '',
-    thumbnail_url: streamData.thumbnail_url || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+    thumbnail_url: streamData.thumbnail_url || '',
     scheduled_date: streamData.scheduled_date || new Date().toISOString().split('T')[0],
     scheduled_time: streamData.scheduled_time || '19:00',
     youtube_url: streamData.youtube_url || '',
@@ -142,7 +167,7 @@ export const saveVideoToSupabase = async (videoData, editId) => {
     title: videoData.title,
     description: videoData.description || '',
     youtube_url: videoData.youtube_url || '',
-    thumbnail_url: videoData.thumbnail_url || 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=800&q=80',
+    thumbnail_url: videoData.thumbnail_url || '',
     category: videoData.category || 'Gaming',
     status: videoData.status || 'published',
     is_trending: Boolean(videoData.is_trending)
@@ -246,8 +271,8 @@ export const saveSupportToSupabase = async (supportData) => {
   if (!supabase) return null;
   const upsertData = {
     id: 1,
-    upi_id: supportData.upi_id || 'creator@upi',
-    creator_name: supportData.creator_name || 'ALEX VANCE',
+    upi_id: supportData.upi_id || '',
+    creator_name: supportData.creator_name || '',
     qr_code_url: supportData.qr_code_url || '',
     default_amount: Number(supportData.default_amount) || 100,
     support_message: supportData.support_message || '',
@@ -270,8 +295,8 @@ export const saveSettingsToSupabase = async (settingsData) => {
   if (!supabase) return null;
   const upsertData = {
     id: 1,
-    website_title: settingsData.website_title || 'CREATOR • Official YouTuber Website',
-    creator_name: settingsData.creator_name || 'ALEX VANCE',
+    website_title: settingsData.website_title || '',
+    creator_name: settingsData.creator_name || '',
     profile_image: settingsData.profile_image || '',
     logo_url: settingsData.logo_url || '',
     hero_welcome_text: settingsData.hero_welcome_text || '',

@@ -90,30 +90,27 @@ ALTER TABLE subscribers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE support_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE social_links ENABLE ROW LEVEL SECURITY;
 
--- Allow PUBLIC read access to content
-CREATE POLICY "Allow public read settings" ON settings FOR SELECT USING (true);
-CREATE POLICY "Allow public read streams" ON streams FOR SELECT USING (true);
-CREATE POLICY "Allow public read videos" ON videos FOR SELECT USING (true);
-CREATE POLICY "Allow public read subscribers" ON subscribers FOR SELECT USING (true);
-CREATE POLICY "Allow public read support_settings" ON support_settings FOR SELECT USING (true);
-CREATE POLICY "Allow public read social_links" ON social_links FOR SELECT USING (true);
+-- Allow PUBLIC read & write access to content
+DROP POLICY IF EXISTS "Allow public read settings" ON settings;
+DROP POLICY IF EXISTS "Allow public all settings" ON settings;
+CREATE POLICY "Allow public all settings" ON settings FOR ALL USING (true) WITH CHECK (true);
 
--- SEED DEFAULT DATA
-INSERT INTO settings (id, website_title, creator_name, hero_welcome_text) 
-VALUES (1, 'CREATOR • Official YouTuber Website', 'ALEX VANCE', 'WELCOME TO THE CHANNEL')
-ON CONFLICT (id) DO NOTHING;
+DROP POLICY IF EXISTS "Allow public read streams" ON streams;
+DROP POLICY IF EXISTS "Allow public all streams" ON streams;
+CREATE POLICY "Allow public all streams" ON streams FOR ALL USING (true) WITH CHECK (true);
 
-INSERT INTO subscribers (id, count, is_api_enabled) 
-VALUES (1, 1245890, false)
-ON CONFLICT (id) DO NOTHING;
+DROP POLICY IF EXISTS "Allow public read videos" ON videos;
+DROP POLICY IF EXISTS "Allow public all videos" ON videos;
+CREATE POLICY "Allow public all videos" ON videos FOR ALL USING (true) WITH CHECK (true);
 
-INSERT INTO support_settings (id, upi_id, creator_name, default_amount) 
-VALUES (1, 'creator@upi', 'ALEX VANCE', 100)
-ON CONFLICT (id) DO NOTHING;
+DROP POLICY IF EXISTS "Allow public read subscribers" ON subscribers;
+DROP POLICY IF EXISTS "Allow public all subscribers" ON subscribers;
+CREATE POLICY "Allow public all subscribers" ON subscribers FOR ALL USING (true) WITH CHECK (true);
 
-INSERT INTO social_links (platform, url, icon_class, sort_order) VALUES
-('YouTube', 'https://youtube.com', 'fa-brands fa-youtube', 1),
-('Instagram', 'https://instagram.com', 'fa-brands fa-instagram', 2),
-('Discord', 'https://discord.gg', 'fa-brands fa-discord', 3),
-('X / Twitter', 'https://x.com', 'fa-brands fa-x-twitter', 4)
-ON CONFLICT DO NOTHING;
+DROP POLICY IF EXISTS "Allow public read support_settings" ON support_settings;
+DROP POLICY IF EXISTS "Allow public all support_settings" ON support_settings;
+CREATE POLICY "Allow public all support_settings" ON support_settings FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read social_links" ON social_links;
+DROP POLICY IF EXISTS "Allow public all social_links" ON social_links;
+CREATE POLICY "Allow public all social_links" ON social_links FOR ALL USING (true) WITH CHECK (true);
