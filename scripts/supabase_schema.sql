@@ -18,20 +18,20 @@ CREATE TABLE IF NOT EXISTS settings (
 
 -- 2. STREAMS TABLE
 CREATE TABLE IF NOT EXISTS streams (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT,
   thumbnail_url TEXT,
   scheduled_date DATE,
   scheduled_time TIME,
   youtube_url TEXT,
-  status TEXT CHECK (status IN ('LIVE NOW', 'UPCOMING', 'ENDED')) DEFAULT 'UPCOMING',
+  status TEXT DEFAULT 'UPCOMING',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 3. VIDEOS TABLE
 CREATE TABLE IF NOT EXISTS videos (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT,
   youtube_url TEXT NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS support_settings (
 
 -- 6. SOCIAL LINKS TABLE
 CREATE TABLE IF NOT EXISTS social_links (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   platform TEXT NOT NULL,
   url TEXT NOT NULL,
   icon_class TEXT NOT NULL,
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS social_links (
 
 -- 7. ADMIN USERS TABLE
 CREATE TABLE IF NOT EXISTS admin_users (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -90,7 +90,7 @@ ALTER TABLE subscribers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE support_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE social_links ENABLE ROW LEVEL SECURITY;
 
--- Allow PUBLIC read & write access to content
+-- Allow PUBLIC full read & write access to content for instant cross-device sync
 DROP POLICY IF EXISTS "Allow public read settings" ON settings;
 DROP POLICY IF EXISTS "Allow public all settings" ON settings;
 CREATE POLICY "Allow public all settings" ON settings FOR ALL USING (true) WITH CHECK (true);
@@ -114,3 +114,4 @@ CREATE POLICY "Allow public all support_settings" ON support_settings FOR ALL US
 DROP POLICY IF EXISTS "Allow public read social_links" ON social_links;
 DROP POLICY IF EXISTS "Allow public all social_links" ON social_links;
 CREATE POLICY "Allow public all social_links" ON social_links FOR ALL USING (true) WITH CHECK (true);
+

@@ -35,15 +35,20 @@ export const isDefaultSettings = (st) => false;
 
 export const mergeWithUserPriority = (localData, cloudData) => {
   if (!cloudData || Object.keys(cloudData).length === 0) return localData || {};
-  if (!localData || Object.keys(localData).length === 0) return cloudData;
 
-  // Cloud Data (Supabase) takes precedence for multi-device sync across all devices!
-  const mergedSettings = { ...(localData.settings || {}), ...(cloudData.settings || {}) };
-  const mergedSupport = { ...(localData.support || {}), ...(cloudData.support || {}) };
-  const mergedSubscribers = { ...(localData.subscribers || {}), ...(cloudData.subscribers || {}) };
-  const mergedStreams = Array.isArray(cloudData.streams) && cloudData.streams.length > 0 ? cloudData.streams : (localData.streams || []);
-  const mergedVideos = Array.isArray(cloudData.videos) && cloudData.videos.length > 0 ? cloudData.videos : (localData.videos || []);
-  const mergedSocials = Array.isArray(cloudData.socials) && cloudData.socials.length > 0 ? cloudData.socials : (localData.socials || []);
+  // Cloud Data (Database/Supabase) takes absolute priority for permanent multi-device sync
+  const mergedSettings = { ...(localData?.settings || {}), ...(cloudData.settings || {}) };
+  const mergedSupport = { ...(localData?.support || {}), ...(cloudData.support || {}) };
+  const mergedSubscribers = { ...(localData?.subscribers || {}), ...(cloudData.subscribers || {}) };
+  const mergedStreams = (Array.isArray(cloudData.streams) && cloudData.streams.length > 0)
+    ? cloudData.streams
+    : (localData?.streams || []);
+  const mergedVideos = (Array.isArray(cloudData.videos) && cloudData.videos.length > 0)
+    ? cloudData.videos
+    : (localData?.videos || []);
+  const mergedSocials = (Array.isArray(cloudData.socials) && cloudData.socials.length > 0)
+    ? cloudData.socials
+    : (localData?.socials || []);
 
   return {
     settings: mergedSettings,
@@ -94,49 +99,51 @@ export const fetchAllSiteDataFromSupabase = async () => {
   }
 };
 
-// --- DIRECT SUPABASE MUTATIONS ---
+// --- DIRECT SUPABASE MUTATIONS WITH VERIFICATION ---
 
 export const saveStreamToSupabase = async (streamData, editId) => {
   if (!supabase) return null;
+  const idToUse = editId || ('stream-' + Date.now());
   const payload = {
+    id: idToUse,
     title: streamData.title,
     description: streamData.description || '',
     thumbnail_url: streamData.thumbnail_url || '',
     scheduled_date: streamData.scheduled_date || new Date().toISOString().split('T')[0],
     scheduled_time: streamData.scheduled_time || '19:00',
     youtube_url: streamData.youtube_url || '',
-    status: streamData.status || 'UPCOMING'
+    status: streamData.status || 'UPCOMING',
+    created_at: streamData.created_at || new Date().toISOString()
   };
 
   try {
-    if (editId) {
-      const { data, error } = await supabase
-        .from('streams')
-        .update(payload)
-        .eq('id', editId)
-        .select();
+    const { data, error } = await supabase
+      .from('streams')
+      .upsert([payload], { onConflict: 'id' })
+      .select();
 
-      if (error) {
-        console.warn('[Supabase saveStream update warning]:', error.message);
-        const { data: insData, error: insErr } = await supabase
-          .from('streams')
-          .insert([payload])
-          .select();
-        if (insErr) console.warn('[Supabase saveStream insert warning]:', insErr.message);
-        return insData;
-      }
-      return data;
-    } else {
-      const { data, error } = await supabase
-        .from('streams')
-        .insert([{ ...payload, created_at: new Date().toISOString() }])
-        .select();
-      if (error) console.warn('[Supabase saveStream insert warning]:', error.message);
-      return data;
+    if (error) {
+      console.error('[Supabase saveStream ERROR]:', error.message, error.details);
+      throw error;
     }
+
+    // Post-save verification: Fetch record back to confirm DB write
+    const { data: verifyData, error: verifyErr } = await supabase
+      .from('streams')
+      .select('*')
+      .eq('id', idToUse)
+      .single();
+
+    if (verifyErr || !verifyData) {
+      console.error('[Supabase saveStream Verification Failed]:', verifyErr?.message);
+      throw new Error('Database save verification failed.');
+    }
+
+    console.log('[Supabase saveStream Verified Success]:', verifyData);
+    return verifyData;
   } catch (err) {
-    console.warn('[Supabase saveStream Exception]:', err);
-    return null;
+    console.error('[Supabase saveStream Exception]:', err);
+    throw err;
   }
 };
 
@@ -147,55 +154,60 @@ export const deleteStreamFromSupabase = async (streamId) => {
       .from('streams')
       .delete()
       .eq('id', streamId);
-    if (error) console.warn('[Supabase deleteStream error]:', error.message);
+    if (error) {
+      console.error('[Supabase deleteStream error]:', error.message);
+      throw error;
+    }
     return data;
   } catch (err) {
-    console.warn('[Supabase deleteStream Exception]:', err);
-    return null;
+    console.error('[Supabase deleteStream Exception]:', err);
+    throw err;
   }
 };
 
 export const saveVideoToSupabase = async (videoData, editId) => {
   if (!supabase) return null;
+  const idToUse = editId || ('vid-' + Date.now());
   const payload = {
+    id: idToUse,
     title: videoData.title,
     description: videoData.description || '',
     youtube_url: videoData.youtube_url || '',
     thumbnail_url: videoData.thumbnail_url || '',
     category: videoData.category || 'Gaming',
     status: videoData.status || 'published',
-    is_trending: Boolean(videoData.is_trending)
+    is_trending: Boolean(videoData.is_trending),
+    created_at: videoData.created_at || new Date().toISOString()
   };
 
   try {
-    if (editId) {
-      const { data, error } = await supabase
-        .from('videos')
-        .update(payload)
-        .eq('id', editId)
-        .select();
+    const { data, error } = await supabase
+      .from('videos')
+      .upsert([payload], { onConflict: 'id' })
+      .select();
 
-      if (error) {
-        console.warn('[Supabase saveVideo update warning]:', error.message);
-        const { data: insData, error: insErr } = await supabase
-          .from('videos')
-          .insert([payload])
-          .select();
-        if (insErr) console.warn('[Supabase saveVideo insert warning]:', insErr.message);
-        return insData;
-      }
-      return data;
-    } else {
-      const { data, error } = await supabase
-        .from('videos')
-        .insert([{ ...payload, created_at: new Date().toISOString() }])
-        .select();
-      if (error) console.warn('[Supabase saveVideo insert warning]:', error.message);
-      return data;
+    if (error) {
+      console.error('[Supabase saveVideo ERROR]:', error.message, error.details);
+      throw error;
     }
+
+    // Post-save verification
+    const { data: verifyData, error: verifyErr } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('id', idToUse)
+      .single();
+
+    if (verifyErr || !verifyData) {
+      console.error('[Supabase saveVideo Verification Failed]:', verifyErr?.message);
+      throw new Error('Database video save verification failed.');
+    }
+
+    console.log('[Supabase saveVideo Verified Success]:', verifyData);
+    return verifyData;
   } catch (err) {
-    console.warn('[Supabase saveVideo Exception]:', err);
-    return null;
+    console.error('[Supabase saveVideo Exception]:', err);
+    throw err;
   }
 };
 
@@ -207,11 +219,11 @@ export const toggleTrendingVideoInSupabase = async (vidId, currentStatus) => {
       .update({ is_trending: !currentStatus })
       .eq('id', vidId)
       .select();
-    if (error) console.warn('[Supabase toggleTrending error]:', error.message);
+    if (error) throw error;
     return data;
   } catch (err) {
-    console.warn('[Supabase toggleTrending Exception]:', err);
-    return null;
+    console.error('[Supabase toggleTrending Exception]:', err);
+    throw err;
   }
 };
 
@@ -222,11 +234,11 @@ export const deleteVideoFromSupabase = async (vidId) => {
       .from('videos')
       .delete()
       .eq('id', vidId);
-    if (error) console.warn('[Supabase deleteVideo error]:', error.message);
+    if (error) throw error;
     return data;
   } catch (err) {
-    console.warn('[Supabase deleteVideo Exception]:', err);
-    return null;
+    console.error('[Supabase deleteVideo Exception]:', err);
+    throw err;
   }
 };
 
@@ -246,11 +258,29 @@ export const saveSubscribersToSupabase = async (subData) => {
       .from('subscribers')
       .upsert(upsertData, { onConflict: 'id' })
       .select();
-    if (error) console.warn('[Supabase saveSubscribers error]:', error.message);
-    return data;
+
+    if (error) {
+      console.error('[Supabase saveSubscribers ERROR]:', error.message, error.details);
+      throw error;
+    }
+
+    // Post-save verification
+    const { data: verifyData, error: verifyErr } = await supabase
+      .from('subscribers')
+      .select('*')
+      .eq('id', 1)
+      .single();
+
+    if (verifyErr || !verifyData) {
+      console.error('[Supabase saveSubscribers Verification Failed]:', verifyErr?.message);
+      throw new Error('Database subscriber count verification failed.');
+    }
+
+    console.log('[Supabase saveSubscribers Verified Success]:', verifyData);
+    return verifyData;
   } catch (err) {
-    console.warn('[Supabase saveSubscribers Exception]:', err);
-    return null;
+    console.error('[Supabase saveSubscribers Exception]:', err);
+    throw err;
   }
 };
 
@@ -270,11 +300,29 @@ export const saveSupportToSupabase = async (supportData) => {
       .from('support_settings')
       .upsert(upsertData, { onConflict: 'id' })
       .select();
-    if (error) console.warn('[Supabase saveSupport error]:', error.message);
-    return data;
+
+    if (error) {
+      console.error('[Supabase saveSupport ERROR]:', error.message, error.details);
+      throw error;
+    }
+
+    // Post-save verification
+    const { data: verifyData, error: verifyErr } = await supabase
+      .from('support_settings')
+      .select('*')
+      .eq('id', 1)
+      .single();
+
+    if (verifyErr || !verifyData) {
+      console.error('[Supabase saveSupport Verification Failed]:', verifyErr?.message);
+      throw new Error('Database support settings verification failed.');
+    }
+
+    console.log('[Supabase saveSupport Verified Success]:', verifyData);
+    return verifyData;
   } catch (err) {
-    console.warn('[Supabase saveSupport Exception]:', err);
-    return null;
+    console.error('[Supabase saveSupport Exception]:', err);
+    throw err;
   }
 };
 
@@ -287,7 +335,7 @@ export const saveSettingsToSupabase = async (settingsData) => {
     profile_image: settingsData.profile_image || '',
     logo_url: settingsData.logo_url || '',
     hero_welcome_text: settingsData.hero_welcome_text || '',
-    hero_typing_texts: Array.isArray(settingsData.hero_typing_texts) ? settingsData.hero_typing_texts.join(', ') : (settingsData.hero_typing_texts || ''),
+    hero_typing_texts: Array.isArray(settingsData.hero_typing_texts) ? settingsData.hero_typing_texts : (settingsData.hero_typing_texts || ''),
     youtube_channel_url: settingsData.youtube_channel_url || '',
     about_text: settingsData.about_text || '',
     updated_at: new Date().toISOString()
@@ -297,17 +345,37 @@ export const saveSettingsToSupabase = async (settingsData) => {
       .from('settings')
       .upsert(upsertData, { onConflict: 'id' })
       .select();
-    if (error) console.warn('[Supabase saveSettings error]:', error.message);
-    return data;
+
+    if (error) {
+      console.error('[Supabase saveSettings ERROR]:', error.message, error.details);
+      throw error;
+    }
+
+    // Post-save verification
+    const { data: verifyData, error: verifyErr } = await supabase
+      .from('settings')
+      .select('*')
+      .eq('id', 1)
+      .single();
+
+    if (verifyErr || !verifyData) {
+      console.error('[Supabase saveSettings Verification Failed]:', verifyErr?.message);
+      throw new Error('Database settings verification failed.');
+    }
+
+    console.log('[Supabase saveSettings Verified Success]:', verifyData);
+    return verifyData;
   } catch (err) {
-    console.warn('[Supabase saveSettings Exception]:', err);
-    return null;
+    console.error('[Supabase saveSettings Exception]:', err);
+    throw err;
   }
 };
 
 export const addSocialToSupabase = async (socialData) => {
   if (!supabase) return null;
+  const idToUse = 's-' + Date.now();
   const payload = {
+    id: idToUse,
     platform: socialData.platform,
     url: socialData.url,
     icon_class: socialData.icon_class || 'fa-solid fa-link',
@@ -317,13 +385,31 @@ export const addSocialToSupabase = async (socialData) => {
   try {
     const { data, error } = await supabase
       .from('social_links')
-      .insert([payload])
+      .upsert([payload], { onConflict: 'id' })
       .select();
-    if (error) console.warn('[Supabase addSocial error]:', error.message);
-    return data;
+
+    if (error) {
+      console.error('[Supabase addSocial ERROR]:', error.message, error.details);
+      throw error;
+    }
+
+    // Post-save verification
+    const { data: verifyData, error: verifyErr } = await supabase
+      .from('social_links')
+      .select('*')
+      .eq('id', idToUse)
+      .single();
+
+    if (verifyErr || !verifyData) {
+      console.error('[Supabase addSocial Verification Failed]:', verifyErr?.message);
+      throw new Error('Database social link verification failed.');
+    }
+
+    console.log('[Supabase addSocial Verified Success]:', verifyData);
+    return verifyData;
   } catch (err) {
-    console.warn('[Supabase addSocial Exception]:', err);
-    return null;
+    console.error('[Supabase addSocial Exception]:', err);
+    throw err;
   }
 };
 
@@ -334,10 +420,11 @@ export const deleteSocialFromSupabase = async (socialId) => {
       .from('social_links')
       .delete()
       .eq('id', socialId);
-    if (error) console.warn('[Supabase deleteSocial error]:', error.message);
+    if (error) throw error;
     return data;
   } catch (err) {
-    console.warn('[Supabase deleteSocial Exception]:', err);
-    return null;
+    console.error('[Supabase deleteSocial Exception]:', err);
+    throw err;
   }
 };
+

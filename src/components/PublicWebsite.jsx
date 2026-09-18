@@ -102,6 +102,7 @@ export default function PublicWebsite() {
           setDisplayCount(Number(combined.subscribers.count));
         }
         setData(combined);
+        saveLocalSiteData(combined);
       }
     };
 

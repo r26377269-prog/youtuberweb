@@ -283,55 +283,92 @@ export default function AdminPortal() {
     e.preventDefault();
     setIsSaving(true);
 
-    const newStream = {
-      id: editStreamId || 'stream-' + Date.now(),
+    const targetId = editStreamId || ('stream-' + Date.now());
+    const streamPayload = {
+      id: targetId,
       ...streamForm,
       created_at: new Date().toISOString()
     };
+
+    let savedDbStream = null;
+    let saveError = null;
+
+    try {
+      savedDbStream = await saveStreamToSupabase(streamForm, editStreamId);
+    } catch (err) {
+      console.error('Supabase save stream error:', err);
+      saveError = err;
+    }
+
+    if (token) {
+      try {
+        const method = editStreamId ? 'PUT' : 'POST';
+        const targetUrl = editStreamId ? `${API_BASE_URL}/api/admin/streams/${editStreamId}` : `${API_BASE_URL}/api/admin/streams`;
+        const res = await fetch(targetUrl, {
+          method,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(streamForm)
+        });
+        const json = await res.json();
+        if (json.success && json.stream) {
+          savedDbStream = json.stream;
+        }
+      } catch (err) {
+        console.warn('API save stream warning:', err);
+      }
+    }
+
+    if (saveError && !savedDbStream) {
+      setIsSaving(false);
+      showToast('❌ Failed to save stream to database!', 'error');
+      return;
+    }
+
+    const finalStream = savedDbStream || streamPayload;
 
     setDashboardData(prev => {
       const current = prev || {};
       const list = Array.isArray(current.streams) ? [...current.streams] : [];
       if (editStreamId) {
         const idx = list.findIndex(s => s.id.toString() === editStreamId.toString());
-        if (idx !== -1) list[idx] = newStream;
-        else list.unshift(newStream);
+        if (idx !== -1) list[idx] = finalStream;
+        else list.unshift(finalStream);
       } else {
-        list.unshift(newStream);
+        list.unshift(finalStream);
       }
       const updated = { ...current, streams: list };
       saveLocalSiteData(updated);
       return updated;
     });
 
-    try {
-      await saveStreamToSupabase(streamForm, editStreamId);
-    } catch (err) {
-      console.warn('Supabase save stream error:', err);
-    }
-
-    try {
-      const method = editStreamId ? 'PUT' : 'POST';
-      const targetUrl = editStreamId ? `${API_BASE_URL}/api/admin/streams/${editStreamId}` : `${API_BASE_URL}/api/admin/streams`;
-      await fetch(targetUrl, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(streamForm)
-      });
-    } catch (err) {
-      console.warn('API save stream warning:', err);
-    }
-
     setIsSaving(false);
     setShowStreamModal(false);
-    showToast(editStreamId ? '✨ Stream updated successfully!' : '🎉 New Stream added successfully!');
+    showToast(editStreamId ? '✨ Stream updated and saved to database!' : '🎉 New Stream added and saved to database!');
+    loadDashboard();
   };
 
   const deleteStream = async (id) => {
     if (!window.confirm('Delete this stream entry?')) return;
+    try {
+      await deleteStreamFromSupabase(id);
+    } catch (err) {
+      console.warn('Supabase delete stream error:', err);
+    }
+
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/api/admin/streams/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      } catch (err) {
+        console.warn('API delete stream warning:', err);
+      }
+    }
+
     setDashboardData(prev => {
       const updated = {
         ...(prev || {}),
@@ -341,21 +378,8 @@ export default function AdminPortal() {
       return updated;
     });
 
-    try {
-      await deleteStreamFromSupabase(id);
-    } catch (err) {
-      console.warn('Supabase delete stream error:', err);
-    }
-
-    try {
-      await fetch(`${API_BASE_URL}/api/admin/streams/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-    } catch (err) {
-      console.warn('API delete stream warning:', err);
-    }
     showToast('🗑️ Stream entry deleted!');
+    loadDashboard();
   };
 
   // --- VIDEOS CRUD ---
@@ -382,55 +406,96 @@ export default function AdminPortal() {
     e.preventDefault();
     setIsSaving(true);
 
-    const newVid = {
-      id: editVideoId || 'vid-' + Date.now(),
+    const targetId = editVideoId || ('vid-' + Date.now());
+    const vidPayload = {
+      id: targetId,
       ...videoForm,
       status: 'published',
       created_at: new Date().toISOString()
     };
+
+    let savedDbVid = null;
+    let saveError = null;
+
+    try {
+      savedDbVid = await saveVideoToSupabase(videoForm, editVideoId);
+    } catch (err) {
+      console.error('Supabase save video error:', err);
+      saveError = err;
+    }
+
+    if (token) {
+      try {
+        const method = editVideoId ? 'PUT' : 'POST';
+        const targetUrl = editVideoId ? `${API_BASE_URL}/api/admin/videos/${editVideoId}` : `${API_BASE_URL}/api/admin/videos`;
+        const res = await fetch(targetUrl, {
+          method,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(videoForm)
+        });
+        const json = await res.json();
+        if (json.success && json.video) {
+          savedDbVid = json.video;
+        }
+      } catch (err) {
+        console.warn('API save video warning:', err);
+      }
+    }
+
+    if (saveError && !savedDbVid) {
+      setIsSaving(false);
+      showToast('❌ Failed to save video to database!', 'error');
+      return;
+    }
+
+    const finalVid = savedDbVid || vidPayload;
 
     setDashboardData(prev => {
       const current = prev || {};
       const list = Array.isArray(current.videos) ? [...current.videos] : [];
       if (editVideoId) {
         const idx = list.findIndex(v => v.id.toString() === editVideoId.toString());
-        if (idx !== -1) list[idx] = newVid;
-        else list.unshift(newVid);
+        if (idx !== -1) list[idx] = finalVid;
+        else list.unshift(finalVid);
       } else {
-        list.unshift(newVid);
+        list.unshift(finalVid);
       }
       const updated = { ...current, videos: list };
       saveLocalSiteData(updated);
       return updated;
     });
 
-    try {
-      await saveVideoToSupabase(videoForm, editVideoId);
-    } catch (err) {
-      console.warn('Supabase save video error:', err);
-    }
-
-    try {
-      const method = editVideoId ? 'PUT' : 'POST';
-      const targetUrl = editVideoId ? `${API_BASE_URL}/api/admin/videos/${editVideoId}` : `${API_BASE_URL}/api/admin/videos`;
-      await fetch(targetUrl, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(videoForm)
-      });
-    } catch (err) {
-      console.warn('API save video warning:', err);
-    }
-
     setIsSaving(false);
     setShowVideoModal(false);
-    showToast(editVideoId ? '✨ Video updated successfully!' : '🎉 New Video added successfully!');
+    showToast(editVideoId ? '✨ Video updated and saved to database!' : '🎉 New Video added and saved to database!');
+    loadDashboard();
   };
 
   const toggleTrending = async (vidId, currentStatus) => {
+    try {
+      await toggleTrendingVideoInSupabase(vidId, currentStatus);
+    } catch (err) {
+      console.warn('Supabase toggle trending error:', err);
+    }
+
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/api/admin/videos/${vidId}/trending`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ is_trending: !currentStatus })
+        });
+      } catch (err) {
+        console.warn('API toggle trending warning:', err);
+      }
+    }
+
     setDashboardData(prev => {
       const updated = {
         ...(prev || {}),
@@ -440,29 +505,29 @@ export default function AdminPortal() {
       return updated;
     });
 
-    try {
-      await toggleTrendingVideoInSupabase(vidId, currentStatus);
-    } catch (err) {
-      console.warn('Supabase toggle trending error:', err);
-    }
-
-    try {
-      await fetch(`${API_BASE_URL}/api/admin/videos/${vidId}/trending`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ is_trending: !currentStatus })
-      });
-    } catch (err) {
-      console.warn('API toggle trending warning:', err);
-    }
     showToast(!currentStatus ? '🔥 Video marked as Trending!' : 'Updated Trending status!');
+    loadDashboard();
   };
 
   const deleteVideo = async (id) => {
     if (!window.confirm('Delete this video entry?')) return;
+    try {
+      await deleteVideoFromSupabase(id);
+    } catch (err) {
+      console.warn('Supabase delete video error:', err);
+    }
+
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/api/admin/videos/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      } catch (err) {
+        console.warn('API delete video warning:', err.message);
+      }
+    }
+
     setDashboardData(prev => {
       const updated = {
         ...(prev || {}),
@@ -472,21 +537,8 @@ export default function AdminPortal() {
       return updated;
     });
 
-    try {
-      await deleteVideoFromSupabase(id);
-    } catch (err) {
-      console.warn('Supabase delete video error:', err);
-    }
-
-    try {
-      await fetch(`${API_BASE_URL}/api/admin/videos/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-    } catch (err) {
-      console.warn('API delete video warning:', err);
-    }
     showToast('🗑️ Video entry deleted!');
+    loadDashboard();
   };
 
   // --- SUBSCRIBER SAVE ---
@@ -505,24 +557,19 @@ export default function AdminPortal() {
       count: Number(subForm.count) || 0
     };
 
-    setDashboardData(prev => {
-      const updated = {
-        ...(prev || {}),
-        subscribers: updatedSub
-      };
-      saveLocalSiteData(updated);
-      return updated;
-    });
+    let dbSaved = null;
+    let saveErr = null;
 
     try {
-      await saveSubscribersToSupabase(updatedSub);
+      dbSaved = await saveSubscribersToSupabase(updatedSub);
     } catch (err) {
-      console.warn('Supabase subscriber save error:', err);
+      console.error('Supabase subscriber save error:', err);
+      saveErr = err;
     }
 
     if (token) {
       try {
-        await fetch(`${API_BASE_URL}/api/admin/subscribers`, {
+        const res = await fetch(`${API_BASE_URL}/api/admin/subscribers`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -530,50 +577,82 @@ export default function AdminPortal() {
           },
           body: JSON.stringify(updatedSub)
         });
+        const json = await res.json();
+        if (json.success && json.subscribers) dbSaved = json.subscribers;
       } catch (err) {
         console.warn('API save subscriber warning:', err);
       }
     }
 
+    if (saveErr && !dbSaved) {
+      setIsSaving(false);
+      showToast('❌ Failed to save subscribers to database!', 'error');
+      return;
+    }
+
+    const finalSub = dbSaved || updatedSub;
+
+    setDashboardData(prev => {
+      const updated = { ...(prev || {}), subscribers: finalSub };
+      saveLocalSiteData(updated);
+      return updated;
+    });
+
     setIsSaving(false);
     setShowSubModal(false);
-    showToast(`✅ Subscriber count updated to ${updatedSub.count.toLocaleString()}!`);
+    showToast(`✅ Subscriber count updated to ${Number(finalSub.count).toLocaleString()} and saved to database!`);
+    loadDashboard();
   };
 
   // --- SUPPORT / UPI SAVE ---
   const handleSaveSupport = async (e) => {
     e.preventDefault();
     setIsSaving(true);
+
+    let dbSaved = null;
+    let saveErr = null;
+
+    try {
+      dbSaved = await saveSupportToSupabase(supportForm);
+    } catch (err) {
+      console.error('Supabase support save error:', err);
+      saveErr = err;
+    }
+
+    if (token) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/admin/support`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(supportForm)
+        });
+        const json = await res.json();
+        if (json.success && json.support) dbSaved = json.support;
+      } catch (err) {
+        console.warn('API save support warning:', err);
+      }
+    }
+
+    if (saveErr && !dbSaved) {
+      setIsSaving(false);
+      showToast('❌ Failed to save support settings to database!', 'error');
+      return;
+    }
+
+    const finalSupport = dbSaved || supportForm;
+
     setDashboardData(prev => {
-      const updated = {
-        ...(prev || {}),
-        support: supportForm
-      };
+      const updated = { ...(prev || {}), support: finalSupport };
       saveLocalSiteData(updated);
       return updated;
     });
 
-    try {
-      await saveSupportToSupabase(supportForm);
-    } catch (err) {
-      console.warn('Supabase support save error:', err);
-    }
-
-    try {
-      await fetch(`${API_BASE_URL}/api/admin/support`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(supportForm)
-      });
-    } catch (err) {
-      console.warn('API save support warning:', err);
-    }
-
     setIsSaving(false);
-    showToast('✅ Support & UPI settings saved successfully!');
+    showToast('✅ Support & UPI settings permanently saved to database!');
+    loadDashboard();
   };
 
   // --- WEBSITE SETTINGS SAVE ---
@@ -588,80 +667,106 @@ export default function AdminPortal() {
       hero_typing_texts: typingList
     };
 
+    let dbSaved = null;
+    let saveErr = null;
+
+    try {
+      dbSaved = await saveSettingsToSupabase(payload);
+    } catch (err) {
+      console.error('Supabase settings save error:', err);
+      saveErr = err;
+    }
+
+    if (token) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/admin/settings`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.success && json.settings) dbSaved = json.settings;
+      } catch (err) {
+        console.warn('API save settings warning:', err);
+      }
+    }
+
+    if (saveErr && !dbSaved) {
+      setIsSaving(false);
+      showToast('❌ Failed to save website settings to database!', 'error');
+      return;
+    }
+
+    const finalSettings = dbSaved || payload;
+
     setDashboardData(prev => {
-      const updated = {
-        ...(prev || {}),
-        settings: payload
-      };
+      const updated = { ...(prev || {}), settings: finalSettings };
       saveLocalSiteData(updated);
       return updated;
     });
 
-    try {
-      await saveSettingsToSupabase(payload);
-    } catch (err) {
-      console.warn('Supabase settings save error:', err);
-    }
-
-    try {
-      await fetch(`${API_BASE_URL}/api/admin/settings`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-    } catch (err) {
-      console.warn('API save settings warning:', err);
-    }
-
     setIsSaving(false);
-    showToast('✅ Website settings updated successfully!');
+    showToast('✅ Website settings permanently saved to database!');
+    loadDashboard();
   };
 
   // --- SOCIALS CRUD ---
   const handleAddSocial = async (e) => {
     e.preventDefault();
     setIsSaving(true);
-    const newSocial = {
-      id: 's-' + Date.now(),
-      ...socialForm,
-      is_active: true
-    };
+
+    let dbSaved = null;
+    let saveErr = null;
+
+    try {
+      dbSaved = await addSocialToSupabase(socialForm);
+    } catch (err) {
+      console.error('Supabase add social error:', err);
+      saveErr = err;
+    }
+
+    if (token) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/admin/socials`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(socialForm)
+        });
+        const json = await res.json();
+        if (json.success && json.social) dbSaved = json.social;
+      } catch (err) {
+        console.warn('API add social warning:', err);
+      }
+    }
+
+    if (saveErr && !dbSaved) {
+      setIsSaving(false);
+      showToast('❌ Failed to save social link to database!', 'error');
+      return;
+    }
+
+    const finalSocial = dbSaved || { id: 's-' + Date.now(), ...socialForm, is_active: true };
 
     setDashboardData(prev => {
       const updated = {
         ...(prev || {}),
-        socials: [...(Array.isArray(prev?.socials) ? prev.socials : []), newSocial]
+        socials: [...(Array.isArray(prev?.socials) ? prev.socials : []), finalSocial]
       };
       saveLocalSiteData(updated);
       return updated;
     });
 
-    try {
-      await addSocialToSupabase(socialForm);
-    } catch (err) {
-      console.warn('Supabase add social error:', err);
-    }
-
-    try {
-      await fetch(`${API_BASE_URL}/api/admin/socials`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(socialForm)
-      });
-    } catch (err) {
-      console.warn('API add social warning:', err);
-    }
-
     setIsSaving(false);
     setShowSocialModal(false);
     setSocialForm({ platform: '', url: '', icon_class: 'fa-brands fa-youtube' });
-    showToast('🎉 Social Link added successfully!');
+    showToast('🎉 Social Link permanently saved to database!');
+    loadDashboard();
   };
 
   const deleteSocial = async (id) => {

@@ -207,20 +207,21 @@ router.post('/streams', authenticateAdmin, async (req, res) => {
       created_at: new Date().toISOString()
     };
 
-    // Save to local DB as primary/fallback store
-    const local = readLocalDb();
-    local.streams = local.streams || [];
-    local.streams.unshift(newStream);
-    writeLocalDb(local);
-
     if (isSupabaseConfigured && supabase) {
       try {
-        const { id, ...supabaseInsert } = newStream;
-        await supabase.from('streams').insert([supabaseInsert]);
+        const { data, error } = await supabase.from('streams').upsert([newStream], { onConflict: 'id' }).select();
+        if (error) console.error('[Supabase Admin Stream Insert Error]:', error.message);
+        else if (data && data[0]) newStream.id = data[0].id;
       } catch (err) {
         console.warn('Supabase stream insert warning:', err.message);
       }
     }
+
+    // Save to local DB
+    const local = readLocalDb();
+    local.streams = local.streams || [];
+    local.streams.unshift(newStream);
+    writeLocalDb(local);
 
     return res.json({ success: true, stream: newStream, message: 'Stream created successfully!' });
   } catch (err) {
@@ -233,41 +234,39 @@ router.put('/streams/:id', authenticateAdmin, async (req, res) => {
   try {
     const streamId = req.params.id;
     const { title, description, thumbnail_url, scheduled_date, scheduled_time, youtube_url, status } = req.body;
-    const targetId = (!isNaN(streamId) && String(streamId).trim() !== '') ? Number(streamId) : streamId;
 
-    const local = readLocalDb();
-    const index = (local.streams || []).findIndex(s => s.id.toString() === streamId.toString());
-    if (index !== -1) {
-      local.streams[index] = {
-        ...local.streams[index],
-        title: title !== undefined ? title : local.streams[index].title,
-        description: description !== undefined ? description : local.streams[index].description,
-        thumbnail_url: thumbnail_url !== undefined ? thumbnail_url : local.streams[index].thumbnail_url,
-        scheduled_date: scheduled_date !== undefined ? scheduled_date : local.streams[index].scheduled_date,
-        scheduled_time: scheduled_time !== undefined ? scheduled_time : local.streams[index].scheduled_time,
-        youtube_url: youtube_url !== undefined ? youtube_url : local.streams[index].youtube_url,
-        status: status !== undefined ? status : local.streams[index].status
-      };
-      writeLocalDb(local);
-    }
+    const payload = {
+      id: streamId,
+      title,
+      description: description || '',
+      thumbnail_url: thumbnail_url || '',
+      scheduled_date: scheduled_date || new Date().toISOString().split('T')[0],
+      scheduled_time: scheduled_time || '19:00',
+      youtube_url: youtube_url || '',
+      status: status || 'UPCOMING',
+      created_at: new Date().toISOString()
+    };
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const payload = { title, description, thumbnail_url, scheduled_date, scheduled_time, youtube_url, status };
-        let { data, error } = await supabase
+        const { error } = await supabase
           .from('streams')
-          .update(payload)
-          .eq('id', targetId)
+          .upsert([payload], { onConflict: 'id' })
           .select();
-        
-        if (error || !data || data.length === 0) {
-          const insertObj = typeof targetId === 'number' ? { id: targetId, ...payload } : payload;
-          await supabase.from('streams').upsert([insertObj]);
-        }
+        if (error) console.error('[Supabase Admin Stream Update Error]:', error.message);
       } catch (err) {
         console.warn('Supabase stream update warning:', err.message);
       }
     }
+
+    const local = readLocalDb();
+    const index = (local.streams || []).findIndex(s => s.id.toString() === streamId.toString());
+    if (index !== -1) {
+      local.streams[index] = { ...local.streams[index], ...payload };
+    } else {
+      (local.streams = local.streams || []).unshift(payload);
+    }
+    writeLocalDb(local);
 
     return res.json({ success: true, message: 'Stream updated successfully!' });
   } catch (err) {
@@ -280,10 +279,6 @@ router.delete('/streams/:id', authenticateAdmin, async (req, res) => {
   try {
     const streamId = req.params.id;
 
-    const local = readLocalDb();
-    local.streams = (local.streams || []).filter(s => s.id.toString() !== streamId.toString());
-    writeLocalDb(local);
-
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.from('streams').delete().eq('id', streamId);
@@ -291,6 +286,10 @@ router.delete('/streams/:id', authenticateAdmin, async (req, res) => {
         console.warn('Supabase stream delete warning:', err.message);
       }
     }
+
+    const local = readLocalDb();
+    local.streams = (local.streams || []).filter(s => s.id.toString() !== streamId.toString());
+    writeLocalDb(local);
 
     return res.json({ success: true, message: 'Stream deleted successfully.' });
   } catch (err) {
@@ -319,19 +318,20 @@ router.post('/videos', authenticateAdmin, async (req, res) => {
       created_at: new Date().toISOString()
     };
 
-    const local = readLocalDb();
-    local.videos = local.videos || [];
-    local.videos.unshift(newVid);
-    writeLocalDb(local);
-
     if (isSupabaseConfigured && supabase) {
       try {
-        const { id, ...supabaseInsert } = newVid;
-        await supabase.from('videos').insert([supabaseInsert]);
+        const { data, error } = await supabase.from('videos').upsert([newVid], { onConflict: 'id' }).select();
+        if (error) console.error('[Supabase Admin Video Insert Error]:', error.message);
+        else if (data && data[0]) newVid.id = data[0].id;
       } catch (err) {
         console.warn('Supabase video insert warning:', err.message);
       }
     }
+
+    const local = readLocalDb();
+    local.videos = local.videos || [];
+    local.videos.unshift(newVid);
+    writeLocalDb(local);
 
     return res.json({ success: true, video: newVid, message: 'Video added successfully!' });
   } catch (err) {
@@ -344,43 +344,39 @@ router.put('/videos/:id', authenticateAdmin, async (req, res) => {
   try {
     const vidId = req.params.id;
     const { title, description, youtube_url, thumbnail_url, category, status, is_trending } = req.body;
-    const targetId = (!isNaN(vidId) && String(vidId).trim() !== '') ? Number(vidId) : vidId;
 
-    const local = readLocalDb();
-    const index = (local.videos || []).findIndex(v => v.id.toString() === vidId.toString());
-    if (index !== -1) {
-      local.videos[index] = {
-        ...local.videos[index],
-        title: title !== undefined ? title : local.videos[index].title,
-        description: description !== undefined ? description : local.videos[index].description,
-        youtube_url: youtube_url !== undefined ? youtube_url : local.videos[index].youtube_url,
-        thumbnail_url: thumbnail_url !== undefined ? thumbnail_url : local.videos[index].thumbnail_url,
-        category: category !== undefined ? category : local.videos[index].category,
-        status: status !== undefined ? status : local.videos[index].status,
-        is_trending: is_trending !== undefined ? Boolean(is_trending) : Boolean(local.videos[index].is_trending)
-      };
-      writeLocalDb(local);
-    }
+    const payload = {
+      id: vidId,
+      title,
+      description: description || '',
+      youtube_url: youtube_url || '',
+      thumbnail_url: thumbnail_url || '',
+      category: category || 'Gaming',
+      status: status || 'published',
+      is_trending: Boolean(is_trending),
+      created_at: new Date().toISOString()
+    };
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const updateData = { title, description, youtube_url, thumbnail_url, category, status };
-        if (is_trending !== undefined) updateData.is_trending = Boolean(is_trending);
-        
-        let { data, error } = await supabase
+        const { error } = await supabase
           .from('videos')
-          .update(updateData)
-          .eq('id', targetId)
+          .upsert([payload], { onConflict: 'id' })
           .select();
-        
-        if (error || !data || data.length === 0) {
-          const insertObj = typeof targetId === 'number' ? { id: targetId, ...updateData } : updateData;
-          await supabase.from('videos').upsert([insertObj]);
-        }
+        if (error) console.error('[Supabase Admin Video Update Error]:', error.message);
       } catch (err) {
         console.warn('Supabase video update warning:', err.message);
       }
     }
+
+    const local = readLocalDb();
+    const index = (local.videos || []).findIndex(v => v.id.toString() === vidId.toString());
+    if (index !== -1) {
+      local.videos[index] = { ...local.videos[index], ...payload };
+    } else {
+      (local.videos = local.videos || []).unshift(payload);
+    }
+    writeLocalDb(local);
 
     return res.json({ success: true, message: 'Video updated successfully!' });
   } catch (err) {
@@ -394,19 +390,19 @@ router.put('/videos/:id/trending', authenticateAdmin, async (req, res) => {
     const vidId = req.params.id;
     const { is_trending } = req.body;
 
-    const local = readLocalDb();
-    const index = (local.videos || []).findIndex(v => v.id.toString() === vidId.toString());
-    if (index !== -1) {
-      local.videos[index].is_trending = Boolean(is_trending);
-      writeLocalDb(local);
-    }
-
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.from('videos').update({ is_trending: Boolean(is_trending) }).eq('id', vidId);
       } catch (err) {
         console.warn('Supabase video trending update warning:', err.message);
       }
+    }
+
+    const local = readLocalDb();
+    const index = (local.videos || []).findIndex(v => v.id.toString() === vidId.toString());
+    if (index !== -1) {
+      local.videos[index].is_trending = Boolean(is_trending);
+      writeLocalDb(local);
     }
 
     return res.json({ success: true, message: 'Trending status updated!' });
@@ -420,10 +416,6 @@ router.delete('/videos/:id', authenticateAdmin, async (req, res) => {
   try {
     const vidId = req.params.id;
 
-    const local = readLocalDb();
-    local.videos = (local.videos || []).filter(v => v.id.toString() !== vidId.toString());
-    writeLocalDb(local);
-
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.from('videos').delete().eq('id', vidId);
@@ -431,6 +423,10 @@ router.delete('/videos/:id', authenticateAdmin, async (req, res) => {
         console.warn('Supabase video delete warning:', err.message);
       }
     }
+
+    const local = readLocalDb();
+    local.videos = (local.videos || []).filter(v => v.id.toString() !== vidId.toString());
+    writeLocalDb(local);
 
     return res.json({ success: true, message: 'Video deleted successfully.' });
   } catch (err) {
@@ -443,39 +439,26 @@ router.delete('/videos/:id', authenticateAdmin, async (req, res) => {
 router.put('/subscribers', authenticateAdmin, async (req, res) => {
   try {
     const { count, is_api_enabled, youtube_channel_id, youtube_api_key, counter_font } = req.body;
+    const parsedCount = count !== undefined && count !== null && count !== '' && !isNaN(Number(count)) ? Number(count) : 1245890;
 
-    const local = readLocalDb();
-    const parsedCount = count !== undefined && count !== null && count !== '' && !isNaN(Number(count)) ? Number(count) : (local.subscribers?.count || 1245890);
-
-    local.subscribers = {
+    const subObject = {
       id: 1,
       count: parsedCount,
-      is_api_enabled: is_api_enabled !== undefined ? Boolean(is_api_enabled) : local.subscribers?.is_api_enabled,
-      youtube_channel_id: youtube_channel_id !== undefined ? youtube_channel_id : local.subscribers?.youtube_channel_id,
-      youtube_api_key: youtube_api_key !== undefined ? youtube_api_key : local.subscribers?.youtube_api_key,
-      counter_font: counter_font !== undefined ? counter_font : (local.subscribers?.counter_font || "'Bebas Neue', sans-serif"),
+      is_api_enabled: Boolean(is_api_enabled),
+      youtube_channel_id: youtube_channel_id || '',
+      youtube_api_key: youtube_api_key || '',
+      counter_font: counter_font || "'Bebas Neue', sans-serif",
       updated_at: new Date().toISOString()
     };
-    writeLocalDb(local);
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const upsertData = {
-          id: 1,
-          count: parsedCount,
-          is_api_enabled: local.subscribers.is_api_enabled,
-          youtube_channel_id: local.subscribers.youtube_channel_id || '',
-          youtube_api_key: local.subscribers.youtube_api_key || '',
-          counter_font: local.subscribers.counter_font,
-          updated_at: new Date().toISOString()
-        };
-        console.log('[Supabase] Upserting subscribers:', JSON.stringify(upsertData));
         const { data: sbData, error: sbError } = await supabase
           .from('subscribers')
-          .upsert(upsertData, { onConflict: 'id' })
+          .upsert(subObject, { onConflict: 'id' })
           .select();
         if (sbError) {
-          console.error('[Supabase] Subscriber upsert ERROR:', sbError.message, sbError.details, sbError.hint);
+          console.error('[Supabase] Subscriber upsert ERROR:', sbError.message, sbError.details);
         } else {
           console.log('[Supabase] Subscriber upsert SUCCESS. Saved count:', sbData?.[0]?.count);
         }
@@ -484,7 +467,11 @@ router.put('/subscribers', authenticateAdmin, async (req, res) => {
       }
     }
 
-    return res.json({ success: true, subscribers: local.subscribers, message: 'Subscriber settings updated!' });
+    const local = readLocalDb();
+    local.subscribers = subObject;
+    writeLocalDb(local);
+
+    return res.json({ success: true, subscribers: subObject, message: 'Subscriber settings updated!' });
   } catch (err) {
     console.error('Error updating subscribers:', err);
     return res.status(500).json({ success: false, message: 'Failed to update subscriber settings.' });
@@ -496,29 +483,31 @@ router.put('/support', authenticateAdmin, async (req, res) => {
   try {
     const { upi_id, creator_name, qr_code_url, default_amount, support_message } = req.body;
 
-    const local = readLocalDb();
-    local.support_settings = {
+    const supportObj = {
       id: 1,
-      upi_id: upi_id || local.support_settings?.upi_id,
-      creator_name: creator_name || local.support_settings?.creator_name,
-      qr_code_url: qr_code_url || local.support_settings?.qr_code_url,
-      default_amount: Number(default_amount) || local.support_settings?.default_amount || 100,
-      support_message: support_message || local.support_settings?.support_message,
+      upi_id: upi_id || '',
+      creator_name: creator_name || '',
+      qr_code_url: qr_code_url || '',
+      default_amount: Number(default_amount) || 100,
+      support_message: support_message || '',
       updated_at: new Date().toISOString()
     };
-    writeLocalDb(local);
 
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase
           .from('support_settings')
-          .upsert({ id: 1, upi_id, creator_name, qr_code_url, default_amount: Number(default_amount), support_message, updated_at: new Date().toISOString() });
+          .upsert(supportObj, { onConflict: 'id' });
       } catch (err) {
         console.warn('Supabase support update warning:', err.message);
       }
     }
 
-    return res.json({ success: true, support: local.support_settings, message: 'Support/UPI settings updated!' });
+    const local = readLocalDb();
+    local.support_settings = supportObj;
+    writeLocalDb(local);
+
+    return res.json({ success: true, support: supportObj, message: 'Support/UPI settings updated!' });
   } catch (err) {
     console.error('Error updating support settings:', err);
     return res.status(500).json({ success: false, message: 'Failed to update Support/UPI settings.' });
@@ -540,19 +529,20 @@ router.post('/socials', authenticateAdmin, async (req, res) => {
       sort_order: Number(sort_order) || 0
     };
 
-    const local = readLocalDb();
-    local.social_links = local.social_links || [];
-    local.social_links.push(newSocial);
-    writeLocalDb(local);
-
     if (isSupabaseConfigured && supabase) {
       try {
-        const { id, ...supabaseInsert } = newSocial;
-        await supabase.from('social_links').insert([supabaseInsert]);
+        const { data, error } = await supabase.from('social_links').upsert([newSocial], { onConflict: 'id' }).select();
+        if (error) console.error('[Supabase Admin Social Insert Error]:', error.message);
+        else if (data && data[0]) newSocial.id = data[0].id;
       } catch (err) {
         console.warn('Supabase social insert warning:', err.message);
       }
     }
+
+    const local = readLocalDb();
+    local.social_links = local.social_links || [];
+    local.social_links.push(newSocial);
+    writeLocalDb(local);
 
     return res.json({ success: true, social: newSocial, message: 'Social link added!' });
   } catch (err) {
@@ -565,10 +555,6 @@ router.delete('/socials/:id', authenticateAdmin, async (req, res) => {
   try {
     const socialId = req.params.id;
 
-    const local = readLocalDb();
-    local.social_links = (local.social_links || []).filter(s => s.id.toString() !== socialId.toString());
-    writeLocalDb(local);
-
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.from('social_links').delete().eq('id', socialId);
@@ -576,6 +562,10 @@ router.delete('/socials/:id', authenticateAdmin, async (req, res) => {
         console.warn('Supabase social delete warning:', err.message);
       }
     }
+
+    const local = readLocalDb();
+    local.social_links = (local.social_links || []).filter(s => s.id.toString() !== socialId.toString());
+    writeLocalDb(local);
 
     return res.json({ success: true, message: 'Social link deleted.' });
   } catch (err) {
@@ -589,32 +579,34 @@ router.put('/settings', authenticateAdmin, async (req, res) => {
   try {
     const { website_title, creator_name, profile_image, logo_url, hero_welcome_text, hero_typing_texts, youtube_channel_url, about_text } = req.body;
 
-    const local = readLocalDb();
-    local.settings = {
-      ...local.settings,
-      website_title: website_title || local.settings?.website_title,
-      creator_name: creator_name || local.settings?.creator_name,
-      profile_image: profile_image || local.settings?.profile_image,
-      logo_url: logo_url || local.settings?.logo_url,
-      hero_welcome_text: hero_welcome_text || local.settings?.hero_welcome_text,
-      hero_typing_texts: hero_typing_texts || local.settings?.hero_typing_texts,
-      youtube_channel_url: youtube_channel_url || local.settings?.youtube_channel_url,
-      about_text: about_text || local.settings?.about_text,
+    const settingsObj = {
+      id: 1,
+      website_title: website_title || '',
+      creator_name: creator_name || '',
+      profile_image: profile_image || '',
+      logo_url: logo_url || '',
+      hero_welcome_text: hero_welcome_text || '',
+      hero_typing_texts: Array.isArray(hero_typing_texts) ? hero_typing_texts : (hero_typing_texts || ''),
+      youtube_channel_url: youtube_channel_url || '',
+      about_text: about_text || '',
       updated_at: new Date().toISOString()
     };
-    writeLocalDb(local);
 
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase
           .from('settings')
-          .upsert({ id: 1, website_title, creator_name, profile_image, logo_url, hero_welcome_text, hero_typing_texts, youtube_channel_url, about_text, updated_at: new Date().toISOString() });
+          .upsert(settingsObj, { onConflict: 'id' });
       } catch (err) {
         console.warn('Supabase settings update warning:', err.message);
       }
     }
 
-    return res.json({ success: true, settings: local.settings, message: 'Website settings updated successfully!' });
+    const local = readLocalDb();
+    local.settings = settingsObj;
+    writeLocalDb(local);
+
+    return res.json({ success: true, settings: settingsObj, message: 'Website settings updated successfully!' });
   } catch (err) {
     console.error('Error updating settings:', err);
     return res.status(500).json({ success: false, message: 'Failed to update website settings.' });
