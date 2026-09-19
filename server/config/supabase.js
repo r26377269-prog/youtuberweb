@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://mdnobmktdijxashunzbs.supabase.co';
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbm9ibWt0ZGlqeGFzaHVuemJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMTAyMTIsImV4cCI6MjEwNDg4NjIxMn0.jKoh60Y8pD285w3PfjKN5mDg2zwpjkHvcVcUfVqjkqE';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbm9ibWt0ZGlqeGFzaHVuemJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTMxMDIxMiwiZXhwIjoyMTA0ODg6MjEyfQ.Cu0vtSEQpxnzoDkEESFZ4kU5SgCBRM5OacA1J9kBBnE';
 
 let supabase = null;
 let isSupabaseConfigured = false;
@@ -22,6 +22,7 @@ if (supabaseUrl && (supabaseServiceKey || supabaseAnonKey) && !supabaseUrl.inclu
 } else {
   console.log('[Supabase] Credentials not configured in .env. Using Local Store Fallback.');
 }
+
 
 // Local File Store Fallback System (Only used if Supabase connection fails completely)
 const localDbPath = path.join(__dirname, '..', 'data', 'store.json');
