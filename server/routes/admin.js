@@ -4,28 +4,20 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const crypto = require('crypto');
 
 const { supabase, isSupabaseConfigured, readLocalDb, writeLocalDb } = require('../config/supabase');
 const { authenticateAdmin, loginLimiter, JWT_SECRET } = require('../middleware/auth');
 
-// Multer Storage Configuration for image uploads
-const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// Helper to validate and generate UUIDs for PostgreSQL compatibility
+const isUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+const getValidUUID = (id) => {
+  if (isUUID(id)) return id;
+  return crypto.randomUUID();
+};
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, 'upload-' + uniqueSuffix + ext);
-  }
-});
-
+// Multer Storage Configuration in memory so image uploads produce permanent Base64 Data URLs
+const storage = multer.memoryStorage();
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
   if (allowedTypes.includes(file.mimetype)) {
@@ -37,7 +29,7 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max
   fileFilter: fileFilter
 });
 
@@ -119,7 +111,7 @@ router.get('/verify', authenticateAdmin, (req, res) => {
   return res.json({ success: true, admin: req.admin });
 });
 
-// 3. FILE UPLOAD ENDPOINT
+// 3. FILE UPLOAD ENDPOINT (Converts image buffer to permanent Base64 Data URL)
 router.post('/upload', authenticateAdmin, (req, res) => {
   upload.single('file')(req, res, (err) => {
     if (err instanceof multer.MulterError) {
@@ -132,20 +124,20 @@ router.post('/upload', authenticateAdmin, (req, res) => {
       return res.status(400).json({ success: false, message: 'No file uploaded.' });
     }
 
-    const fileUrl = `/uploads/${req.file.filename}`;
-    return res.json({ success: true, fileUrl, filename: req.file.filename });
+    const base64Url = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    return res.json({ success: true, fileUrl: base64Url, filename: req.file.originalname });
   });
 });
 
-// 4. GET ALL ADMIN DASHBOARD DATA
+// 4. GET ALL ADMIN DASHBOARD DATA (DB is absolute single source of truth)
 router.get('/dashboard-data', authenticateAdmin, async (req, res) => {
   try {
-    let settings = {};
-    let streams = [];
-    let videos = [];
-    let subscribers = {};
-    let support = {};
-    let socials = [];
+    let settings = null;
+    let streams = null;
+    let videos = null;
+    let subscribers = null;
+    let support = null;
+    let socials = null;
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -159,25 +151,23 @@ router.get('/dashboard-data', authenticateAdmin, async (req, res) => {
         ]);
 
         if (settingsRes.data) settings = settingsRes.data;
-        if (streamsRes.data) streams = streamsRes.data;
-        if (videosRes.data) videos = videosRes.data;
-        // ALWAYS trust Supabase for subscribers - service role key ensures reliability
+        if (streamsRes.data !== null && streamsRes.data !== undefined) streams = streamsRes.data;
+        if (videosRes.data !== null && videosRes.data !== undefined) videos = videosRes.data;
         if (subsRes.data) subscribers = subsRes.data;
         if (supportRes.data) support = supportRes.data;
-        if (socialsRes.data) socials = socialsRes.data;
+        if (socialsRes.data !== null && socialsRes.data !== undefined) socials = socialsRes.data;
       } catch (sbErr) {
         console.warn('Supabase dashboard data warning:', sbErr.message);
       }
     }
 
     const local = readLocalDb();
-    if (!settings.creator_name) settings = local.settings || settings;
-    if (streams.length === 0) streams = local.streams || [];
-    if (videos.length === 0) videos = local.videos || [];
-    // Only fall back to store.json for subscribers if Supabase is not configured (subscribers stays as {} default)
-    if (!subscribers || subscribers.id === undefined) subscribers = local.subscribers || subscribers;
-    if (!support.upi_id) support = local.support_settings || support;
-    if (socials.length === 0) socials = local.social_links || [];
+    if (!settings) settings = local.settings || {};
+    if (streams === null) streams = local.streams || [];
+    if (videos === null) videos = local.videos || [];
+    if (!subscribers) subscribers = local.subscribers || { count: 1245890, is_api_enabled: false };
+    if (!support) support = local.support_settings || {};
+    if (socials === null) socials = local.social_links || [];
 
     return res.json({
       success: true,
@@ -192,14 +182,15 @@ router.get('/dashboard-data', authenticateAdmin, async (req, res) => {
 // 5. STREAMS CRUD
 router.post('/streams', authenticateAdmin, async (req, res) => {
   try {
-    const { title, description, thumbnail_url, scheduled_date, scheduled_time, youtube_url, status } = req.body;
+    const { title, description, thumbnail_url, scheduled_date, scheduled_time, youtube_url, status, id } = req.body;
     if (!title) return res.status(400).json({ success: false, message: 'Stream title is required.' });
 
+    const targetId = getValidUUID(id);
     const newStream = {
-      id: 'stream-' + Date.now(),
-      title,
+      id: targetId,
+      title: title.trim(),
       description: description || '',
-      thumbnail_url: thumbnail_url || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+      thumbnail_url: thumbnail_url || '',
       scheduled_date: scheduled_date || new Date().toISOString().split('T')[0],
       scheduled_time: scheduled_time || '19:00',
       youtube_url: youtube_url || '',
@@ -208,16 +199,21 @@ router.post('/streams', authenticateAdmin, async (req, res) => {
     };
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.from('streams').upsert([newStream], { onConflict: 'id' }).select();
-        if (error) console.error('[Supabase Admin Stream Insert Error]:', error.message);
-        else if (data && data[0]) newStream.id = data[0].id;
-      } catch (err) {
-        console.warn('Supabase stream insert warning:', err.message);
+      const { data, error } = await supabase.from('streams').upsert([newStream], { onConflict: 'id' }).select();
+      if (error) {
+        console.error('[Supabase Stream Insert Error]:', error.message);
+        return res.status(500).json({ success: false, message: `Database save error: ${error.message}` });
       }
+      const resultStream = (data && data[0]) ? data[0] : newStream;
+
+      const local = readLocalDb();
+      local.streams = (local.streams || []).filter(s => s.id !== targetId);
+      local.streams.unshift(resultStream);
+      writeLocalDb(local);
+
+      return res.json({ success: true, stream: resultStream, message: 'Stream created and saved to database!' });
     }
 
-    // Save to local DB
     const local = readLocalDb();
     local.streams = local.streams || [];
     local.streams.unshift(newStream);
@@ -232,12 +228,12 @@ router.post('/streams', authenticateAdmin, async (req, res) => {
 
 router.put('/streams/:id', authenticateAdmin, async (req, res) => {
   try {
-    const streamId = req.params.id;
+    const streamId = getValidUUID(req.params.id);
     const { title, description, thumbnail_url, scheduled_date, scheduled_time, youtube_url, status } = req.body;
 
     const payload = {
       id: streamId,
-      title,
+      title: title || '',
       description: description || '',
       thumbnail_url: thumbnail_url || '',
       scheduled_date: scheduled_date || new Date().toISOString().split('T')[0],
@@ -248,15 +244,26 @@ router.put('/streams/:id', authenticateAdmin, async (req, res) => {
     };
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        const { error } = await supabase
-          .from('streams')
-          .upsert([payload], { onConflict: 'id' })
-          .select();
-        if (error) console.error('[Supabase Admin Stream Update Error]:', error.message);
-      } catch (err) {
-        console.warn('Supabase stream update warning:', err.message);
+      const { data, error } = await supabase
+        .from('streams')
+        .upsert([payload], { onConflict: 'id' })
+        .select();
+      if (error) {
+        console.error('[Supabase Stream Update Error]:', error.message);
+        return res.status(500).json({ success: false, message: `Database update error: ${error.message}` });
       }
+
+      const resultStream = (data && data[0]) ? data[0] : payload;
+      const local = readLocalDb();
+      const index = (local.streams || []).findIndex(s => s.id.toString() === streamId.toString());
+      if (index !== -1) {
+        local.streams[index] = resultStream;
+      } else {
+        (local.streams = local.streams || []).unshift(resultStream);
+      }
+      writeLocalDb(local);
+
+      return res.json({ success: true, stream: resultStream, message: 'Stream updated in database successfully!' });
     }
 
     const local = readLocalDb();
@@ -280,10 +287,10 @@ router.delete('/streams/:id', authenticateAdmin, async (req, res) => {
     const streamId = req.params.id;
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('streams').delete().eq('id', streamId);
-      } catch (err) {
-        console.warn('Supabase stream delete warning:', err.message);
+      const { error } = await supabase.from('streams').delete().eq('id', streamId);
+      if (error) {
+        console.error('[Supabase Stream Delete Error]:', error.message);
+        return res.status(500).json({ success: false, message: `Database deletion error: ${error.message}` });
       }
     }
 
@@ -291,7 +298,7 @@ router.delete('/streams/:id', authenticateAdmin, async (req, res) => {
     local.streams = (local.streams || []).filter(s => s.id.toString() !== streamId.toString());
     writeLocalDb(local);
 
-    return res.json({ success: true, message: 'Stream deleted successfully.' });
+    return res.json({ success: true, message: 'Stream deleted successfully from database.' });
   } catch (err) {
     console.error('Error deleting stream:', err);
     return res.status(500).json({ success: false, message: 'Failed to delete stream.' });
@@ -301,17 +308,18 @@ router.delete('/streams/:id', authenticateAdmin, async (req, res) => {
 // 6. VIDEOS CRUD
 router.post('/videos', authenticateAdmin, async (req, res) => {
   try {
-    const { title, description, youtube_url, thumbnail_url, category, status, is_trending } = req.body;
+    const { title, description, youtube_url, thumbnail_url, category, status, is_trending, id } = req.body;
     if (!title || !youtube_url) {
       return res.status(400).json({ success: false, message: 'Video title and YouTube URL are required.' });
     }
 
+    const targetId = getValidUUID(id);
     const newVid = {
-      id: 'vid-' + Date.now(),
-      title,
+      id: targetId,
+      title: title.trim(),
       description: description || '',
       youtube_url,
-      thumbnail_url: thumbnail_url || 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=800&q=80',
+      thumbnail_url: thumbnail_url || '',
       category: category || 'Gaming',
       status: status || 'published',
       is_trending: Boolean(is_trending),
@@ -319,13 +327,19 @@ router.post('/videos', authenticateAdmin, async (req, res) => {
     };
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.from('videos').upsert([newVid], { onConflict: 'id' }).select();
-        if (error) console.error('[Supabase Admin Video Insert Error]:', error.message);
-        else if (data && data[0]) newVid.id = data[0].id;
-      } catch (err) {
-        console.warn('Supabase video insert warning:', err.message);
+      const { data, error } = await supabase.from('videos').upsert([newVid], { onConflict: 'id' }).select();
+      if (error) {
+        console.error('[Supabase Video Insert Error]:', error.message);
+        return res.status(500).json({ success: false, message: `Database save error: ${error.message}` });
       }
+      const resultVid = (data && data[0]) ? data[0] : newVid;
+
+      const local = readLocalDb();
+      local.videos = (local.videos || []).filter(v => v.id !== targetId);
+      local.videos.unshift(resultVid);
+      writeLocalDb(local);
+
+      return res.json({ success: true, video: resultVid, message: 'Video saved to database successfully!' });
     }
 
     const local = readLocalDb();
@@ -342,12 +356,12 @@ router.post('/videos', authenticateAdmin, async (req, res) => {
 
 router.put('/videos/:id', authenticateAdmin, async (req, res) => {
   try {
-    const vidId = req.params.id;
+    const vidId = getValidUUID(req.params.id);
     const { title, description, youtube_url, thumbnail_url, category, status, is_trending } = req.body;
 
     const payload = {
       id: vidId,
-      title,
+      title: title || '',
       description: description || '',
       youtube_url: youtube_url || '',
       thumbnail_url: thumbnail_url || '',
@@ -358,15 +372,26 @@ router.put('/videos/:id', authenticateAdmin, async (req, res) => {
     };
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        const { error } = await supabase
-          .from('videos')
-          .upsert([payload], { onConflict: 'id' })
-          .select();
-        if (error) console.error('[Supabase Admin Video Update Error]:', error.message);
-      } catch (err) {
-        console.warn('Supabase video update warning:', err.message);
+      const { data, error } = await supabase
+        .from('videos')
+        .upsert([payload], { onConflict: 'id' })
+        .select();
+      if (error) {
+        console.error('[Supabase Video Update Error]:', error.message);
+        return res.status(500).json({ success: false, message: `Database update error: ${error.message}` });
       }
+      const resultVid = (data && data[0]) ? data[0] : payload;
+
+      const local = readLocalDb();
+      const index = (local.videos || []).findIndex(v => v.id.toString() === vidId.toString());
+      if (index !== -1) {
+        local.videos[index] = resultVid;
+      } else {
+        (local.videos = local.videos || []).unshift(resultVid);
+      }
+      writeLocalDb(local);
+
+      return res.json({ success: true, video: resultVid, message: 'Video updated in database successfully!' });
     }
 
     const local = readLocalDb();
@@ -391,10 +416,10 @@ router.put('/videos/:id/trending', authenticateAdmin, async (req, res) => {
     const { is_trending } = req.body;
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('videos').update({ is_trending: Boolean(is_trending) }).eq('id', vidId);
-      } catch (err) {
-        console.warn('Supabase video trending update warning:', err.message);
+      const { error } = await supabase.from('videos').update({ is_trending: Boolean(is_trending) }).eq('id', vidId);
+      if (error) {
+        console.error('[Supabase Video Trending Toggle Error]:', error.message);
+        return res.status(500).json({ success: false, message: `Database error: ${error.message}` });
       }
     }
 
@@ -405,7 +430,7 @@ router.put('/videos/:id/trending', authenticateAdmin, async (req, res) => {
       writeLocalDb(local);
     }
 
-    return res.json({ success: true, message: 'Trending status updated!' });
+    return res.json({ success: true, message: 'Trending status updated in database!' });
   } catch (err) {
     console.error('Error toggling video trending status:', err);
     return res.status(500).json({ success: false, message: 'Failed to update trending status.' });
@@ -417,10 +442,10 @@ router.delete('/videos/:id', authenticateAdmin, async (req, res) => {
     const vidId = req.params.id;
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('videos').delete().eq('id', vidId);
-      } catch (err) {
-        console.warn('Supabase video delete warning:', err.message);
+      const { error } = await supabase.from('videos').delete().eq('id', vidId);
+      if (error) {
+        console.error('[Supabase Video Delete Error]:', error.message);
+        return res.status(500).json({ success: false, message: `Database deletion error: ${error.message}` });
       }
     }
 
@@ -428,7 +453,7 @@ router.delete('/videos/:id', authenticateAdmin, async (req, res) => {
     local.videos = (local.videos || []).filter(v => v.id.toString() !== vidId.toString());
     writeLocalDb(local);
 
-    return res.json({ success: true, message: 'Video deleted successfully.' });
+    return res.json({ success: true, message: 'Video deleted successfully from database.' });
   } catch (err) {
     console.error('Error deleting video:', err);
     return res.status(500).json({ success: false, message: 'Failed to delete video.' });
@@ -439,7 +464,7 @@ router.delete('/videos/:id', authenticateAdmin, async (req, res) => {
 router.put('/subscribers', authenticateAdmin, async (req, res) => {
   try {
     const { count, is_api_enabled, youtube_channel_id, youtube_api_key, counter_font } = req.body;
-    const parsedCount = count !== undefined && count !== null && count !== '' && !isNaN(Number(count)) ? Number(count) : 1245890;
+    const parsedCount = count !== undefined && count !== null && count !== '' && !isNaN(Number(count)) ? Number(count) : 0;
 
     const subObject = {
       id: 1,
@@ -452,19 +477,22 @@ router.put('/subscribers', authenticateAdmin, async (req, res) => {
     };
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        const { data: sbData, error: sbError } = await supabase
-          .from('subscribers')
-          .upsert(subObject, { onConflict: 'id' })
-          .select();
-        if (sbError) {
-          console.error('[Supabase] Subscriber upsert ERROR:', sbError.message, sbError.details);
-        } else {
-          console.log('[Supabase] Subscriber upsert SUCCESS. Saved count:', sbData?.[0]?.count);
-        }
-      } catch (err) {
-        console.error('[Supabase] Subscriber update exception:', err.message);
+      const { data, error } = await supabase
+        .from('subscribers')
+        .upsert(subObject, { onConflict: 'id' })
+        .select();
+
+      if (error) {
+        console.error('[Supabase] Subscriber upsert ERROR:', error.message);
+        return res.status(500).json({ success: false, message: `Database subscriber save error: ${error.message}` });
       }
+
+      const resultSub = (data && data[0]) ? data[0] : subObject;
+      const local = readLocalDb();
+      local.subscribers = resultSub;
+      writeLocalDb(local);
+
+      return res.json({ success: true, subscribers: resultSub, message: 'Subscriber settings updated and saved to database!' });
     }
 
     const local = readLocalDb();
@@ -494,13 +522,22 @@ router.put('/support', authenticateAdmin, async (req, res) => {
     };
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('support_settings')
-          .upsert(supportObj, { onConflict: 'id' });
-      } catch (err) {
-        console.warn('Supabase support update warning:', err.message);
+      const { data, error } = await supabase
+        .from('support_settings')
+        .upsert(supportObj, { onConflict: 'id' })
+        .select();
+
+      if (error) {
+        console.error('[Supabase] Support settings upsert ERROR:', error.message);
+        return res.status(500).json({ success: false, message: `Database support settings save error: ${error.message}` });
       }
+
+      const resultSupport = (data && data[0]) ? data[0] : supportObj;
+      const local = readLocalDb();
+      local.support_settings = resultSupport;
+      writeLocalDb(local);
+
+      return res.json({ success: true, support: resultSupport, message: 'Support settings saved to database successfully!' });
     }
 
     const local = readLocalDb();
@@ -517,11 +554,12 @@ router.put('/support', authenticateAdmin, async (req, res) => {
 // 9. SOCIAL LINKS CRUD
 router.post('/socials', authenticateAdmin, async (req, res) => {
   try {
-    const { platform, url, icon_class, sort_order } = req.body;
+    const { platform, url, icon_class, sort_order, id } = req.body;
     if (!platform || !url) return res.status(400).json({ success: false, message: 'Platform name and URL are required.' });
 
+    const targetId = getValidUUID(id);
     const newSocial = {
-      id: 's-' + Date.now(),
+      id: targetId,
       platform,
       url,
       icon_class: icon_class || 'fa-solid fa-link',
@@ -530,13 +568,19 @@ router.post('/socials', authenticateAdmin, async (req, res) => {
     };
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.from('social_links').upsert([newSocial], { onConflict: 'id' }).select();
-        if (error) console.error('[Supabase Admin Social Insert Error]:', error.message);
-        else if (data && data[0]) newSocial.id = data[0].id;
-      } catch (err) {
-        console.warn('Supabase social insert warning:', err.message);
+      const { data, error } = await supabase.from('social_links').upsert([newSocial], { onConflict: 'id' }).select();
+      if (error) {
+        console.error('[Supabase Social Insert Error]:', error.message);
+        return res.status(500).json({ success: false, message: `Database save error: ${error.message}` });
       }
+
+      const resultSocial = (data && data[0]) ? data[0] : newSocial;
+      const local = readLocalDb();
+      local.social_links = (local.social_links || []).filter(s => s.id !== targetId);
+      local.social_links.push(resultSocial);
+      writeLocalDb(local);
+
+      return res.json({ success: true, social: resultSocial, message: 'Social link saved to database!' });
     }
 
     const local = readLocalDb();
@@ -556,10 +600,10 @@ router.delete('/socials/:id', authenticateAdmin, async (req, res) => {
     const socialId = req.params.id;
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('social_links').delete().eq('id', socialId);
-      } catch (err) {
-        console.warn('Supabase social delete warning:', err.message);
+      const { error } = await supabase.from('social_links').delete().eq('id', socialId);
+      if (error) {
+        console.error('[Supabase Social Delete Error]:', error.message);
+        return res.status(500).json({ success: false, message: `Database deletion error: ${error.message}` });
       }
     }
 
@@ -567,7 +611,7 @@ router.delete('/socials/:id', authenticateAdmin, async (req, res) => {
     local.social_links = (local.social_links || []).filter(s => s.id.toString() !== socialId.toString());
     writeLocalDb(local);
 
-    return res.json({ success: true, message: 'Social link deleted.' });
+    return res.json({ success: true, message: 'Social link deleted from database.' });
   } catch (err) {
     console.error('Error deleting social link:', err);
     return res.status(500).json({ success: false, message: 'Failed to delete social link.' });
@@ -577,7 +621,14 @@ router.delete('/socials/:id', authenticateAdmin, async (req, res) => {
 // 10. WEBSITE GENERAL SETTINGS
 router.put('/settings', authenticateAdmin, async (req, res) => {
   try {
-    const { website_title, creator_name, profile_image, logo_url, hero_welcome_text, hero_typing_texts, youtube_channel_url, about_text } = req.body;
+    const { website_title, creator_name, profile_image, logo_url, hero_welcome_text, hero_typing_texts, youtube_channel_url, hero_video_url, about_text } = req.body;
+
+    let typingArr = [];
+    if (Array.isArray(hero_typing_texts)) {
+      typingArr = hero_typing_texts;
+    } else if (typeof hero_typing_texts === 'string' && hero_typing_texts.trim()) {
+      typingArr = hero_typing_texts.split(',').map(s => s.trim()).filter(Boolean);
+    }
 
     const settingsObj = {
       id: 1,
@@ -586,20 +637,30 @@ router.put('/settings', authenticateAdmin, async (req, res) => {
       profile_image: profile_image || '',
       logo_url: logo_url || '',
       hero_welcome_text: hero_welcome_text || '',
-      hero_typing_texts: Array.isArray(hero_typing_texts) ? hero_typing_texts : (hero_typing_texts || ''),
+      hero_typing_texts: typingArr,
       youtube_channel_url: youtube_channel_url || '',
+      hero_video_url: hero_video_url || '',
       about_text: about_text || '',
       updated_at: new Date().toISOString()
     };
 
     if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase
-          .from('settings')
-          .upsert(settingsObj, { onConflict: 'id' });
-      } catch (err) {
-        console.warn('Supabase settings update warning:', err.message);
+      const { data, error } = await supabase
+        .from('settings')
+        .upsert(settingsObj, { onConflict: 'id' })
+        .select();
+
+      if (error) {
+        console.error('[Supabase Settings Upsert Error]:', error.message);
+        return res.status(500).json({ success: false, message: `Database settings save error: ${error.message}` });
       }
+
+      const resultSettings = (data && data[0]) ? data[0] : settingsObj;
+      const local = readLocalDb();
+      local.settings = resultSettings;
+      writeLocalDb(local);
+
+      return res.json({ success: true, settings: resultSettings, message: 'Website settings saved to database successfully!' });
     }
 
     const local = readLocalDb();

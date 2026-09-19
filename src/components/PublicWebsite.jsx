@@ -82,22 +82,25 @@ export default function PublicWebsite() {
       : 'https://youtuberweb.onrender.com';
 
     const refreshData = async () => {
-      const local = getLocalSiteData();
-      let fresh = await fetchAllSiteDataFromSupabase();
-
-      let combined = mergeWithUserPriority(local || {}, fresh || {});
+      let fetchedData = null;
 
       try {
         const res = await fetch(`${API_BASE_URL}/api/public/data`);
         const json = await res.json();
         if (json.success && json.data) {
-          combined = mergeWithUserPriority(combined, json.data);
+          fetchedData = json.data;
         }
       } catch (err) {
-        // REST API offline, rely on Supabase Cloud & Local Storage
+        // REST API offline
       }
 
-      if (combined && Object.keys(combined).length > 0) {
+      if (!fetchedData) {
+        fetchedData = await fetchAllSiteDataFromSupabase();
+      }
+
+      if (fetchedData && Object.keys(fetchedData).length > 0) {
+        const local = getLocalSiteData();
+        const combined = mergeWithUserPriority(local || {}, fetchedData);
         if (combined.subscribers && combined.subscribers.count !== undefined) {
           setDisplayCount(Number(combined.subscribers.count));
         }
@@ -105,6 +108,7 @@ export default function PublicWebsite() {
         saveLocalSiteData(combined);
       }
     };
+
 
     refreshData();
 

@@ -6,11 +6,11 @@ const { supabase, isSupabaseConfigured, readLocalDb } = require('../config/supab
 const getPublicData = async (req, res) => {
   try {
     let settings = null;
-    let streams = [];
-    let videos = [];
+    let streams = null;
+    let videos = null;
     let subscribers = null;
     let support = null;
-    let socials = [];
+    let socials = null;
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -24,29 +24,44 @@ const getPublicData = async (req, res) => {
         ]);
 
         if (settingsRes.data) settings = settingsRes.data;
-        if (streamsRes.data && streamsRes.data.length > 0) streams = streamsRes.data;
-        if (videosRes.data && videosRes.data.length > 0) videos = videosRes.data;
-        // ALWAYS trust Supabase for subscribers (service role key can read/write reliably)
+        if (streamsRes.data !== null && streamsRes.data !== undefined) streams = streamsRes.data;
+        if (videosRes.data !== null && videosRes.data !== undefined) videos = videosRes.data;
         if (subsRes.data) subscribers = subsRes.data;
         if (supportRes.data) support = supportRes.data;
-        if (socialsRes.data && socialsRes.data.length > 0) socials = socialsRes.data;
+        if (socialsRes.data !== null && socialsRes.data !== undefined) socials = socialsRes.data;
       } catch (sbErr) {
-        console.warn('[Supabase Query Warning] Falling back to local data:', sbErr.message);
+        console.warn('[Supabase Query Warning]:', sbErr.message);
       }
     }
 
-    // Merge with local db defaults if any property is null or empty
     const local = readLocalDb();
-    if (!settings || !settings.creator_name) settings = local.settings || settings || {};
-    if (streams.length === 0) streams = local.streams || [];
-    if (videos.length === 0) videos = (local.videos || []).filter(v => v.status === 'published');
-    // IMPORTANT: If Supabase returned subscribers data, ALWAYS use it (even if count=0)
-    // Only fall back to store.json if Supabase is not configured OR returned null/error
-    if (subscribers === null) {
-      subscribers = (local.subscribers && local.subscribers.count !== undefined) ? local.subscribers : { count: 0, is_api_enabled: false };
+
+    if (!settings) {
+      settings = local.settings || {};
     }
-    if (!support || !support.upi_id) support = local.support_settings || support || {};
-    if (socials.length === 0) socials = (local.social_links || []).filter(s => s.is_active);
+    // Handle legacy disk image paths if any exist
+    if (settings.profile_image && settings.profile_image.startsWith('/uploads/')) {
+      settings.profile_image = '/images/profile.jpg';
+    }
+
+    if (streams === null) {
+      streams = local.streams || [];
+    }
+    if (videos === null) {
+      videos = (local.videos || []).filter(v => v.status === 'published');
+    }
+    if (subscribers === null) {
+      subscribers = local.subscribers || { count: 1245890, is_api_enabled: false };
+    }
+    if (!support) {
+      support = local.support_settings || {};
+    }
+    if (support.qr_code_url && support.qr_code_url.startsWith('/uploads/')) {
+      support.qr_code_url = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=' + encodeURIComponent(support.upi_id || 'creator@upi');
+    }
+    if (socials === null) {
+      socials = (local.social_links || []).filter(s => s.is_active);
+    }
 
     return res.json({
       success: true,
@@ -62,3 +77,4 @@ router.get('/data', getPublicData);
 router.get('/public-data', getPublicData);
 
 module.exports = router;
+

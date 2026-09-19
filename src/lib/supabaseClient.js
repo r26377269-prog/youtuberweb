@@ -9,6 +9,23 @@ export const supabase = (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes
 
 export const STORAGE_KEY = 'youtuber_site_data';
 
+export const isUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+
+export const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+export const getValidUUID = (id) => {
+  if (isUUID(id)) return id;
+  return generateUUID();
+};
+
 export const getLocalSiteData = () => {
   if (typeof window === 'undefined') return null;
   try {
@@ -36,17 +53,17 @@ export const isDefaultSettings = (st) => false;
 export const mergeWithUserPriority = (localData, cloudData) => {
   if (!cloudData || Object.keys(cloudData).length === 0) return localData || {};
 
-  // Cloud Data (Database/Supabase) takes absolute priority for permanent multi-device sync
-  const mergedSettings = { ...(localData?.settings || {}), ...(cloudData.settings || {}) };
-  const mergedSupport = { ...(localData?.support || {}), ...(cloudData.support || {}) };
-  const mergedSubscribers = { ...(localData?.subscribers || {}), ...(cloudData.subscribers || {}) };
-  const mergedStreams = (Array.isArray(cloudData.streams) && cloudData.streams.length > 0)
+  // Database (Cloud Data) is the single source of truth for permanent persistence
+  const mergedSettings = cloudData.settings || localData?.settings || {};
+  const mergedSupport = cloudData.support || localData?.support || {};
+  const mergedSubscribers = cloudData.subscribers || localData?.subscribers || {};
+  const mergedStreams = Array.isArray(cloudData.streams)
     ? cloudData.streams
     : (localData?.streams || []);
-  const mergedVideos = (Array.isArray(cloudData.videos) && cloudData.videos.length > 0)
+  const mergedVideos = Array.isArray(cloudData.videos)
     ? cloudData.videos
     : (localData?.videos || []);
-  const mergedSocials = (Array.isArray(cloudData.socials) && cloudData.socials.length > 0)
+  const mergedSocials = Array.isArray(cloudData.socials)
     ? cloudData.socials
     : (localData?.socials || []);
 
@@ -103,7 +120,7 @@ export const fetchAllSiteDataFromSupabase = async () => {
 
 export const saveStreamToSupabase = async (streamData, editId) => {
   if (!supabase) return null;
-  const idToUse = editId || ('stream-' + Date.now());
+  const idToUse = getValidUUID(editId);
   const payload = {
     id: idToUse,
     title: streamData.title,
@@ -127,7 +144,6 @@ export const saveStreamToSupabase = async (streamData, editId) => {
       throw error;
     }
 
-    // Post-save verification: Fetch record back to confirm DB write
     const { data: verifyData, error: verifyErr } = await supabase
       .from('streams')
       .select('*')
@@ -167,7 +183,7 @@ export const deleteStreamFromSupabase = async (streamId) => {
 
 export const saveVideoToSupabase = async (videoData, editId) => {
   if (!supabase) return null;
-  const idToUse = editId || ('vid-' + Date.now());
+  const idToUse = getValidUUID(editId);
   const payload = {
     id: idToUse,
     title: videoData.title,
@@ -191,7 +207,6 @@ export const saveVideoToSupabase = async (videoData, editId) => {
       throw error;
     }
 
-    // Post-save verification
     const { data: verifyData, error: verifyErr } = await supabase
       .from('videos')
       .select('*')
@@ -264,7 +279,6 @@ export const saveSubscribersToSupabase = async (subData) => {
       throw error;
     }
 
-    // Post-save verification
     const { data: verifyData, error: verifyErr } = await supabase
       .from('subscribers')
       .select('*')
@@ -306,7 +320,6 @@ export const saveSupportToSupabase = async (supportData) => {
       throw error;
     }
 
-    // Post-save verification
     const { data: verifyData, error: verifyErr } = await supabase
       .from('support_settings')
       .select('*')
@@ -328,6 +341,13 @@ export const saveSupportToSupabase = async (supportData) => {
 
 export const saveSettingsToSupabase = async (settingsData) => {
   if (!supabase) return null;
+  let typingArr = [];
+  if (Array.isArray(settingsData.hero_typing_texts)) {
+    typingArr = settingsData.hero_typing_texts;
+  } else if (typeof settingsData.hero_typing_texts === 'string' && settingsData.hero_typing_texts.trim()) {
+    typingArr = settingsData.hero_typing_texts.split(',').map(s => s.trim()).filter(Boolean);
+  }
+
   const upsertData = {
     id: 1,
     website_title: settingsData.website_title || '',
@@ -335,7 +355,7 @@ export const saveSettingsToSupabase = async (settingsData) => {
     profile_image: settingsData.profile_image || '',
     logo_url: settingsData.logo_url || '',
     hero_welcome_text: settingsData.hero_welcome_text || '',
-    hero_typing_texts: Array.isArray(settingsData.hero_typing_texts) ? settingsData.hero_typing_texts : (settingsData.hero_typing_texts || ''),
+    hero_typing_texts: typingArr,
     youtube_channel_url: settingsData.youtube_channel_url || '',
     about_text: settingsData.about_text || '',
     updated_at: new Date().toISOString()
@@ -351,7 +371,6 @@ export const saveSettingsToSupabase = async (settingsData) => {
       throw error;
     }
 
-    // Post-save verification
     const { data: verifyData, error: verifyErr } = await supabase
       .from('settings')
       .select('*')
@@ -373,7 +392,7 @@ export const saveSettingsToSupabase = async (settingsData) => {
 
 export const addSocialToSupabase = async (socialData) => {
   if (!supabase) return null;
-  const idToUse = 's-' + Date.now();
+  const idToUse = getValidUUID(socialData.id);
   const payload = {
     id: idToUse,
     platform: socialData.platform,
@@ -393,7 +412,6 @@ export const addSocialToSupabase = async (socialData) => {
       throw error;
     }
 
-    // Post-save verification
     const { data: verifyData, error: verifyErr } = await supabase
       .from('social_links')
       .select('*')
@@ -427,4 +445,5 @@ export const deleteSocialFromSupabase = async (socialId) => {
     throw err;
   }
 };
+
 

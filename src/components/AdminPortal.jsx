@@ -17,7 +17,9 @@ import {
   getLocalSiteData
 } from '../lib/supabaseClient';
 
-const API_BASE_URL = 'https://youtuberweb.onrender.com';
+const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? (window.location.port === '3000' ? '' : 'http://localhost:3000')
+  : 'https://youtuberweb.onrender.com';
 
 export default function AdminPortal() {
   const getStoredToken = () => {
@@ -227,7 +229,7 @@ export default function AdminPortal() {
     setToken('');
   };
 
-  // Upload helper
+  // Upload helper (Produces permanent Base64 Data URL)
   const handleFileUpload = async (file) => {
     if (!file) return null;
     let base64Url = null;
@@ -239,16 +241,21 @@ export default function AdminPortal() {
     formData.append('file', file);
 
     try {
-      await fetch(`${API_BASE_URL}/api/admin/upload`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
+      const json = await res.json();
+      if (json.success && json.fileUrl) {
+        return json.fileUrl;
+      }
     } catch (err) {
-      console.error('Upload failed warning:', err);
+      console.error('Upload warning:', err);
     }
     return base64Url;
   };
+
 
   // --- STREAMS CRUD ---
   const openAddStream = () => {
