@@ -69,65 +69,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupNavigation();
 });
 
-function saveCurrentDataToLocal(data) {
-  try {
-    if (data) localStorage.setItem('youtuber_site_data', JSON.stringify(data));
-  } catch (e) {}
-}
-
-function getLocalSiteDataObj() {
-  try {
-    const raw = localStorage.getItem('youtuber_site_data');
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    return null;
-  }
-}
-
-// Fetch all dashboard data from Admin API
+// Fetch all dashboard data strictly from Admin API / Supabase
 async function loadDashboardData() {
-  const local = getLocalSiteDataObj();
-  const defaultData = {
-    settings: { website_title: 'CREATOR • Official YouTuber Website', creator_name: 'ALEX VANCE' },
-    streams: [],
-    videos: [],
-    subscribers: { count: 1245890, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: false },
-    support: { upi_id: 'fam_2f43d815507f5ee1714a857d7454c93c7e6e661e@fam', creator_name: 'ALEX VANCE', default_amount: 100 },
-    socials: []
-  };
-
-  currentDashboardData = local || defaultData;
-
-  renderOverviewStats();
-  renderStreamsTable();
-  renderVideosTable();
-  renderSubscribersTable();
-  populateSupportForm();
-  renderSocialsTable();
-  populateSettingsForm();
-
   const token = getAdminToken();
-  if (token) {
-    try {
-      const res = await fetch(API_BASE_URL + '/api/admin/dashboard-data', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const json = await res.json();
+  if (!token) return;
 
-      if (json.success && json.data) {
-        currentDashboardData = { ...(local || {}), ...json.data };
-        saveCurrentDataToLocal(currentDashboardData);
-        renderOverviewStats();
-        renderStreamsTable();
-        renderVideosTable();
-        renderSubscribersTable();
-        populateSupportForm();
-        renderSocialsTable();
-        populateSettingsForm();
-      }
-    } catch (err) {
-      console.warn('Error loading dashboard data:', err);
+  try {
+    const res = await fetch(API_BASE_URL + '/api/admin/dashboard-data', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const json = await res.json();
+
+    if (json.success && json.data) {
+      currentDashboardData = json.data;
+      renderOverviewStats();
+      renderStreamsTable();
+      renderVideosTable();
+      renderSubscribersTable();
+      populateSupportForm();
+      renderSocialsTable();
+      populateSettingsForm();
+    } else {
+      console.error('[Dashboard Error] Failed to fetch database data:', json.message);
+      alert('Unable to load website data from database: ' + (json.message || 'Server error'));
     }
+  } catch (err) {
+    console.error('[Dashboard Error] Network exception fetching dashboard data:', err);
+    alert('Unable to connect to backend server. Please check your connection and retry.');
   }
 }
 
@@ -159,47 +127,51 @@ function setupNavigation() {
 // 1. OVERVIEW STATS
 function renderOverviewStats() {
   if (!currentDashboardData) return;
-  const { streams, videos, subscribers, support } = currentDashboardData;
+  const streams = currentDashboardData.streams || [];
+  const videos = currentDashboardData.videos || [];
+  const subscribers = currentDashboardData.subscribers || {};
 
-  const totalVidEl = document.getElementById('stat-total-videos');
-  const totalStreamEl = document.getElementById('stat-total-streams');
+  const totalStreamsEl = document.getElementById('stat-total-streams');
+  const totalVideosEl = document.getElementById('stat-total-videos');
   const subCountEl = document.getElementById('stat-sub-count');
-  const upiIdEl = document.getElementById('stat-upi-id');
 
-  if (totalVidEl) totalVidEl.innerText = (videos || []).length;
-  if (totalStreamEl) totalStreamEl.innerText = (streams || []).length;
-  if (subCountEl && subscribers) subCountEl.innerText = (subscribers.count || 0).toLocaleString();
-  if (upiIdEl && support) upiIdEl.innerText = support.upi_id || 'Not Set';
+  if (totalStreamsEl) totalStreamsEl.innerText = streams.length;
+  if (totalVideosEl) totalVideosEl.innerText = videos.length;
+  if (subCountEl) subCountEl.innerText = Number(subscribers.count || 0).toLocaleString();
 }
 
 // 2. FILE UPLOAD HELPER
-async function uploadFile(fileInputId) {
-  const input = document.getElementById(fileInputId);
-  if (!input || !input.files || input.files.length === 0) return null;
+async function uploadFile(inputId) {
+  const fileInput = document.getElementById(inputId);
+  if (!fileInput || !fileInput.files || fileInput.files.length === 0) return null;
 
-  const file = input.files[0];
+  const file = fileInput.files[0];
   let base64Url = null;
+
   try {
     base64Url = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
+      reader.onerror = (err) => reject(err);
       reader.readAsDataURL(file);
     });
   } catch(e) {}
 
+  const token = getAdminToken();
   const formData = new FormData();
   formData.append('file', file);
 
-  const token = getAdminToken();
   try {
-    await fetch(API_BASE_URL + '/api/admin/upload', {
+    const res = await fetch(API_BASE_URL + '/api/admin/upload', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: formData
     });
-  } catch(e) {}
-
+    const json = await res.json();
+    if (json.success && json.fileUrl) return json.fileUrl;
+  } catch (err) {
+    console.error('Upload warning:', err);
+  }
   return base64Url;
 }
 
@@ -288,12 +260,14 @@ async function saveStreamForm(e) {
     const json = await res.json();
     if (json.success) {
       closeStreamModal();
+      alert(json.message || 'Stream saved successfully to database!');
       loadDashboardData();
     } else {
-      alert(json.message || 'Save failed');
+      alert('❌ Save failed: ' + (json.message || 'Database error'));
     }
   } catch (err) {
     console.error('Error saving stream:', err);
+    alert('❌ Save failed: Could not connect to backend server.');
   }
 }
 
@@ -306,9 +280,15 @@ async function deleteStream(id) {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const json = await res.json();
-    if (json.success) loadDashboardData();
+    if (json.success) {
+      alert(json.message || 'Stream deleted from database!');
+      loadDashboardData();
+    } else {
+      alert('❌ Delete failed: ' + (json.message || 'Database error'));
+    }
   } catch (err) {
     console.error('Error deleting stream:', err);
+    alert('❌ Delete failed: Network connection error.');
   }
 }
 
@@ -354,9 +334,14 @@ async function toggleVideoTrending(id, isTrending) {
       body: JSON.stringify({ is_trending: isTrending })
     });
     const json = await res.json();
-    if (json.success) loadDashboardData();
+    if (json.success) {
+      loadDashboardData();
+    } else {
+      alert('❌ Update failed: ' + (json.message || 'Database error'));
+    }
   } catch (err) {
     console.error('Error toggling video trending:', err);
+    alert('❌ Connection error toggling trending status.');
   }
 }
 
@@ -420,12 +405,14 @@ async function saveVideoForm(e) {
     const json = await res.json();
     if (json.success) {
       closeVideoModal();
+      alert(json.message || 'Video saved to database successfully!');
       loadDashboardData();
     } else {
-      alert(json.message || 'Save failed');
+      alert('❌ Save failed: ' + (json.message || 'Database error'));
     }
   } catch (err) {
     console.error('Error saving video:', err);
+    alert('❌ Save failed: Could not connect to backend server.');
   }
 }
 
@@ -438,136 +425,26 @@ async function deleteVideo(id) {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const json = await res.json();
-    if (json.success) loadDashboardData();
+    if (json.success) {
+      alert(json.message || 'Video deleted from database!');
+      loadDashboardData();
+    } else {
+      alert('❌ Delete failed: ' + (json.message || 'Database error'));
+    }
   } catch (err) {
     console.error('Error deleting video:', err);
+    alert('❌ Delete failed: Network connection error.');
   }
 }
 
 // 5. SUBSCRIBER TABLE & MODAL LOGIC
-function saveInlineSubCount() {
-  const inputEl = document.getElementById('inline-sub-count-input');
-  if (!inputEl) return;
-  const newCount = Number(inputEl.value) || 0;
-
-  if (!currentDashboardData) currentDashboardData = {};
-  if (!currentDashboardData.subscribers) {
-    currentDashboardData.subscribers = { count: newCount, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: false };
-  } else {
-    currentDashboardData.subscribers.count = newCount;
-  }
-
-  localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
-  renderSubscribersTable();
-  renderOverviewStats();
-  alert('Subscriber count updated to ' + newCount.toLocaleString() + '!');
-
-  const token = getAdminToken();
-  if (token) {
-    fetch(API_BASE_URL + '/api/admin/subscribers', {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(currentDashboardData.subscribers)
-    }).catch(err => console.warn('API sync warning:', err));
-  }
-}
-window.saveInlineSubCount = saveInlineSubCount;
-
-function saveInlineChannelId() {
-  const inputEl = document.getElementById('inline-channel-id-input');
-  if (!inputEl) return;
-  const newChannelId = inputEl.value.trim();
-
-  if (!currentDashboardData) currentDashboardData = {};
-  if (!currentDashboardData.subscribers) {
-    currentDashboardData.subscribers = { count: 1245890, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: false, youtube_channel_id: newChannelId };
-  } else {
-    currentDashboardData.subscribers.youtube_channel_id = newChannelId;
-  }
-
-  localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
-  renderSubscribersTable();
-  alert('YouTube Channel ID updated successfully!');
-
-  const token = getAdminToken();
-  if (token) {
-    fetch(API_BASE_URL + '/api/admin/subscribers', {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(currentDashboardData.subscribers)
-    }).catch(err => console.warn('API sync warning:', err));
-  }
-}
-window.saveInlineChannelId = saveInlineChannelId;
-
-function saveInlineApiKey() {
-  const inputEl = document.getElementById('inline-api-key-input');
-  if (!inputEl) return;
-  const newApiKey = inputEl.value.trim();
-
-  if (!currentDashboardData) currentDashboardData = {};
-  if (!currentDashboardData.subscribers) {
-    currentDashboardData.subscribers = { count: 1245890, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: false, youtube_api_key: newApiKey };
-  } else {
-    currentDashboardData.subscribers.youtube_api_key = newApiKey;
-  }
-
-  localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
-  renderSubscribersTable();
-  alert('YouTube API Key updated successfully!');
-
-  const token = getAdminToken();
-  if (token) {
-    fetch(API_BASE_URL + '/api/admin/subscribers', {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(currentDashboardData.subscribers)
-    }).catch(err => console.warn('API sync warning:', err));
-  }
-}
-window.saveInlineApiKey = saveInlineApiKey;
-
-function toggleSubApiStatus() {
-  if (!currentDashboardData) currentDashboardData = {};
-  if (!currentDashboardData.subscribers) {
-    currentDashboardData.subscribers = { count: 1245890, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: true };
-  } else {
-    currentDashboardData.subscribers.is_api_enabled = !currentDashboardData.subscribers.is_api_enabled;
-  }
-
-  localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
-  renderSubscribersTable();
-  const statusStr = currentDashboardData.subscribers.is_api_enabled ? 'Enabled' : 'Disabled';
-  alert('YouTube API Sync status changed to ' + statusStr + '!');
-
-  const token = getAdminToken();
-  if (token) {
-    fetch(API_BASE_URL + '/api/admin/subscribers', {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(currentDashboardData.subscribers)
-    }).catch(err => console.warn('API sync warning:', err));
-  }
-}
-window.toggleSubApiStatus = toggleSubApiStatus;
-
 function renderSubscribersTable() {
   const tbody = document.getElementById('subscribers-table-body');
   if (!tbody) return;
 
-  const s = (currentDashboardData && currentDashboardData.subscribers) ? currentDashboardData.subscribers : { count: 1245890, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: false };
+  if (!currentDashboardData || !currentDashboardData.subscribers) return;
+  const s = currentDashboardData.subscribers;
+
   const fontDisplayNames = {
     "'Bebas Neue', sans-serif": "Bebas Neue (Bold Display)",
     "'Outfit', sans-serif": "Outfit (Clean Geometric)",
@@ -645,8 +522,142 @@ function renderSubscribersTable() {
   `;
 }
 
+async function saveInlineSubCount() {
+  const inputEl = document.getElementById('inline-sub-count-input');
+  if (!inputEl) return;
+  const newCount = Number(inputEl.value) || 0;
+
+  const currentSub = (currentDashboardData && currentDashboardData.subscribers) ? currentDashboardData.subscribers : {};
+  const updatedSub = { ...currentSub, count: newCount };
+
+  const token = getAdminToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(API_BASE_URL + '/api/admin/subscribers', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updatedSub)
+    });
+    const json = await res.json();
+    if (json.success) {
+      alert('Subscriber count updated to ' + newCount.toLocaleString() + ' and saved to database!');
+      loadDashboardData();
+    } else {
+      alert('❌ Update failed: ' + (json.message || 'Database error'));
+    }
+  } catch (err) {
+    console.error('API sync error:', err);
+    alert('❌ Connection error updating subscriber count.');
+  }
+}
+window.saveInlineSubCount = saveInlineSubCount;
+
+async function saveInlineChannelId() {
+  const inputEl = document.getElementById('inline-channel-id-input');
+  if (!inputEl) return;
+  const newChannelId = inputEl.value.trim();
+
+  const currentSub = (currentDashboardData && currentDashboardData.subscribers) ? currentDashboardData.subscribers : {};
+  const updatedSub = { ...currentSub, youtube_channel_id: newChannelId };
+
+  const token = getAdminToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(API_BASE_URL + '/api/admin/subscribers', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updatedSub)
+    });
+    const json = await res.json();
+    if (json.success) {
+      alert('YouTube Channel ID updated successfully in database!');
+      loadDashboardData();
+    } else {
+      alert('❌ Update failed: ' + (json.message || 'Database error'));
+    }
+  } catch (err) {
+    console.error('API sync error:', err);
+    alert('❌ Connection error updating Channel ID.');
+  }
+}
+window.saveInlineChannelId = saveInlineChannelId;
+
+async function saveInlineApiKey() {
+  const inputEl = document.getElementById('inline-api-key-input');
+  if (!inputEl) return;
+  const newApiKey = inputEl.value.trim();
+
+  const currentSub = (currentDashboardData && currentDashboardData.subscribers) ? currentDashboardData.subscribers : {};
+  const updatedSub = { ...currentSub, youtube_api_key: newApiKey };
+
+  const token = getAdminToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(API_BASE_URL + '/api/admin/subscribers', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updatedSub)
+    });
+    const json = await res.json();
+    if (json.success) {
+      alert('YouTube API Key updated successfully in database!');
+      loadDashboardData();
+    } else {
+      alert('❌ Update failed: ' + (json.message || 'Database error'));
+    }
+  } catch (err) {
+    console.error('API sync error:', err);
+    alert('❌ Connection error updating API Key.');
+  }
+}
+window.saveInlineApiKey = saveInlineApiKey;
+
+async function toggleSubApiStatus() {
+  const currentSub = (currentDashboardData && currentDashboardData.subscribers) ? currentDashboardData.subscribers : {};
+  const updatedSub = { ...currentSub, is_api_enabled: !Boolean(currentSub.is_api_enabled) };
+
+  const token = getAdminToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(API_BASE_URL + '/api/admin/subscribers', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updatedSub)
+    });
+    const json = await res.json();
+    if (json.success) {
+      const statusStr = updatedSub.is_api_enabled ? 'Enabled' : 'Disabled';
+      alert('YouTube API Sync status changed to ' + statusStr + ' in database!');
+      loadDashboardData();
+    } else {
+      alert('❌ Status toggle failed: ' + (json.message || 'Database error'));
+    }
+  } catch (err) {
+    console.error('API sync error:', err);
+    alert('❌ Connection error toggling API sync status.');
+  }
+}
+window.toggleSubApiStatus = toggleSubApiStatus;
+
 function openEditSubModal(targetField) {
-  const s = (currentDashboardData && currentDashboardData.subscribers) ? currentDashboardData.subscribers : { count: 1245890, counter_font: "'Bebas Neue', sans-serif", is_api_enabled: false };
+  if (!currentDashboardData || !currentDashboardData.subscribers) return;
+  const s = currentDashboardData.subscribers;
   
   const countInput = document.getElementById('sub-count-input');
   const fontSelect = document.getElementById('sub-font-select');
@@ -677,7 +688,7 @@ function closeSubModal() {
   if (subModal) subModal.style.display = 'none';
 }
 
-function saveSubscriberSettings(e) {
+async function saveSubscriberSettings(e) {
   e.preventDefault();
   const token = getAdminToken();
   const countVal = document.getElementById('sub-count-input') ? document.getElementById('sub-count-input').value : '1245890';
@@ -689,26 +700,26 @@ function saveSubscriberSettings(e) {
 
   const payload = { count, counter_font, is_api_enabled, youtube_channel_id, youtube_api_key };
 
-  if (!currentDashboardData) {
-    currentDashboardData = {};
-  }
-  currentDashboardData.subscribers = payload;
-  localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
-
-  renderSubscribersTable();
-  renderOverviewStats();
-  closeSubModal();
-  alert('Subscriber settings updated successfully!');
-
-  if (token) {
-    fetch(API_BASE_URL + '/api/admin/subscribers', {
+  try {
+    const res = await fetch(API_BASE_URL + '/api/admin/subscribers', {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
-    }).catch(err => console.warn('API sync warning:', err));
+    });
+    const json = await res.json();
+    if (json.success) {
+      closeSubModal();
+      alert('Subscriber settings updated successfully in database!');
+      loadDashboardData();
+    } else {
+      alert('❌ Update failed: ' + (json.message || 'Database error'));
+    }
+  } catch (err) {
+    console.error('API sync error:', err);
+    alert('❌ Connection error saving subscriber settings.');
   }
 }
 
@@ -747,13 +758,8 @@ async function saveSupportSettings(e) {
 
   const payload = { upi_id, creator_name, default_amount: Number(default_amount), support_message, qr_code_url };
 
-  if (currentDashboardData) {
-    currentDashboardData.support = { ...(currentDashboardData.support || {}), ...payload };
-    localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
-  }
-
   try {
-    await fetch(API_BASE_URL + '/api/admin/support', {
+    const res = await fetch(API_BASE_URL + '/api/admin/support', {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -761,11 +767,17 @@ async function saveSupportSettings(e) {
       },
       body: JSON.stringify(payload)
     });
+    const json = await res.json();
+    if (json.success) {
+      alert('Support / UPI settings updated successfully in database!');
+      loadDashboardData();
+    } else {
+      alert('❌ Update failed: ' + (json.message || 'Database error'));
+    }
   } catch (err) {
-    console.warn('API support save warning:', err);
+    console.error('API support save error:', err);
+    alert('❌ Connection error saving support settings.');
   }
-  alert('Support / UPI settings updated successfully!');
-  populateSupportForm();
 }
 
 // 7. SOCIAL LINKS TABLE
@@ -798,14 +810,8 @@ async function saveAddSocialForm(e) {
   const url = document.getElementById('social-url-input').value;
   const icon_class = document.getElementById('social-icon-input').value;
 
-  const newSocial = { id: 's-' + Date.now(), platform, url, icon_class, is_active: true };
-  if (currentDashboardData) {
-    currentDashboardData.socials = [...(currentDashboardData.socials || []), newSocial];
-    localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
-  }
-
   try {
-    await fetch(API_BASE_URL + '/api/admin/socials', {
+    const res = await fetch(API_BASE_URL + '/api/admin/socials', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -813,29 +819,39 @@ async function saveAddSocialForm(e) {
       },
       body: JSON.stringify({ platform, url, icon_class })
     });
+    const json = await res.json();
+    if (json.success) {
+      document.getElementById('social-form').reset();
+      alert('Social link added to database successfully!');
+      loadDashboardData();
+    } else {
+      alert('❌ Add failed: ' + (json.message || 'Database error'));
+    }
   } catch (err) {
-    console.warn('API add social warning:', err);
+    console.error('API add social error:', err);
+    alert('❌ Connection error adding social link.');
   }
-  document.getElementById('social-form').reset();
-  loadDashboardData();
 }
 
 async function deleteSocial(id) {
   if (!confirm('Remove this social link?')) return;
   const token = getAdminToken();
-  if (currentDashboardData) {
-    currentDashboardData.socials = (currentDashboardData.socials || []).filter(s => s.id.toString() !== id.toString());
-    localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
-  }
   try {
-    await fetch(`/api/admin/socials/${id}`, {
+    const res = await fetch(`/api/admin/socials/${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` }
     });
+    const json = await res.json();
+    if (json.success) {
+      alert('Social link deleted from database!');
+      loadDashboardData();
+    } else {
+      alert('❌ Delete failed: ' + (json.message || 'Database error'));
+    }
   } catch (err) {
-    console.warn('API delete social warning:', err);
+    console.error('API delete social error:', err);
+    alert('❌ Connection error deleting social link.');
   }
-  loadDashboardData();
 }
 
 // 8. WEBSITE SETTINGS FORM
@@ -885,13 +901,8 @@ async function saveWebsiteSettings(e) {
 
   const payload = { website_title, creator_name, hero_welcome_text, hero_typing_texts, about_text, profile_image };
 
-  if (currentDashboardData) {
-    currentDashboardData.settings = { ...(currentDashboardData.settings || {}), ...payload };
-    localStorage.setItem('youtuber_site_data', JSON.stringify(currentDashboardData));
-  }
-
   try {
-    await fetch(API_BASE_URL + '/api/admin/settings', {
+    const res = await fetch(API_BASE_URL + '/api/admin/settings', {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -899,11 +910,17 @@ async function saveWebsiteSettings(e) {
       },
       body: JSON.stringify(payload)
     });
+    const json = await res.json();
+    if (json.success) {
+      alert('Website settings updated successfully in database!');
+      loadDashboardData();
+    } else {
+      alert('❌ Update failed: ' + (json.message || 'Database error'));
+    }
   } catch (err) {
-    console.warn('API settings save warning:', err);
+    console.error('API settings save error:', err);
+    alert('❌ Connection error saving website settings.');
   }
-  alert('Website settings updated successfully!');
-  populateSettingsForm();
 }
 
 // 9. CHANGE PASSWORD
@@ -929,6 +946,7 @@ async function handleChangePassword(e) {
     }
   } catch (err) {
     console.error('Error changing password:', err);
+    alert('❌ Connection error changing password.');
   }
 }
 

@@ -1,13 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || 'https://mdnobmktdijxashunzbs.supabase.co';
-const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbm9ibWt0ZGlqeGFzaHVuemJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMTAyMTIsImV4cCI6MjEwNDg4NjIxMn0.jKoh60Y8pD285w3PfjKN5mDg2zwpjkHvcVcUfVqjkqE';
+const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || '';
 
-export const supabase = (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('your-supabase-project-id'))
+export const supabase = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
-
-export const STORAGE_KEY = 'youtuber_site_data';
 
 export const isUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 
@@ -26,60 +24,23 @@ export const getValidUUID = (id) => {
   return generateUUID();
 };
 
-export const getLocalSiteData = () => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    return null;
-  }
-};
-
-export const saveLocalSiteData = (data) => {
-  if (typeof window === 'undefined' || !data) return;
-  try {
-    const existing = getLocalSiteData() || {};
-    const updated = { ...existing, ...data };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  } catch (e) {
-    console.warn('LocalStorage save warning:', e);
-  }
-};
-
-export const isDefaultSupport = (sup) => false;
-export const isDefaultSettings = (st) => false;
+export const isDefaultSupport = () => false;
+export const isDefaultSettings = () => false;
 
 export const mergeWithUserPriority = (localData, cloudData) => {
-  if (!cloudData || Object.keys(cloudData).length === 0) return localData || {};
-
-  // Database (Cloud Data) is the single source of truth for permanent persistence
-  const mergedSettings = cloudData.settings || localData?.settings || {};
-  const mergedSupport = cloudData.support || localData?.support || {};
-  const mergedSubscribers = cloudData.subscribers || localData?.subscribers || {};
-  const mergedStreams = Array.isArray(cloudData.streams)
-    ? cloudData.streams
-    : (localData?.streams || []);
-  const mergedVideos = Array.isArray(cloudData.videos)
-    ? cloudData.videos
-    : (localData?.videos || []);
-  const mergedSocials = Array.isArray(cloudData.socials)
-    ? cloudData.socials
-    : (localData?.socials || []);
-
+  if (!cloudData || Object.keys(cloudData).length === 0) return {};
   return {
-    settings: mergedSettings,
-    support: mergedSupport,
-    subscribers: mergedSubscribers,
-    streams: mergedStreams,
-    videos: mergedVideos,
-    socials: mergedSocials
+    settings: cloudData.settings || {},
+    support: cloudData.support || {},
+    subscribers: cloudData.subscribers || {},
+    streams: Array.isArray(cloudData.streams) ? cloudData.streams : [],
+    videos: Array.isArray(cloudData.videos) ? cloudData.videos : [],
+    socials: Array.isArray(cloudData.socials) ? cloudData.socials : []
   };
 };
 
 export const fetchAllSiteDataFromSupabase = async () => {
-  const localData = getLocalSiteData();
-  if (!supabase) return localData;
+  if (!supabase) return null;
   try {
     const [settingsRes, streamsRes, videosRes, subsRes, supportRes, socialsRes] = await Promise.allSettled([
       supabase.from('settings').select('*').single(),
@@ -91,28 +52,24 @@ export const fetchAllSiteDataFromSupabase = async () => {
     ]);
 
     const settings = settingsRes.status === 'fulfilled' && settingsRes.value?.data ? settingsRes.value.data : null;
-    const streams = streamsRes.status === 'fulfilled' && Array.isArray(streamsRes.value?.data) ? streamsRes.value.data : null;
-    const videos = videosRes.status === 'fulfilled' && Array.isArray(videosRes.value?.data) ? videosRes.value.data : null;
+    const streams = streamsRes.status === 'fulfilled' && Array.isArray(streamsRes.value?.data) ? streamsRes.value.data : [];
+    const videos = videosRes.status === 'fulfilled' && Array.isArray(videosRes.value?.data) ? videosRes.value.data : [];
     const subscribers = subsRes.status === 'fulfilled' && subsRes.value?.data ? subsRes.value.data : null;
     const support = supportRes.status === 'fulfilled' && supportRes.value?.data ? supportRes.value.data : null;
-    const socials = socialsRes.status === 'fulfilled' && Array.isArray(socialsRes.value?.data) ? socialsRes.value.data : null;
+    const socials = socialsRes.status === 'fulfilled' && Array.isArray(socialsRes.value?.data) ? socialsRes.value.data : [];
 
     const result = {};
     if (settings) result.settings = settings;
-    if (streams !== null) result.streams = streams;
-    if (videos !== null) result.videos = videos;
+    if (streams) result.streams = streams;
+    if (videos) result.videos = videos;
     if (subscribers) result.subscribers = subscribers;
     if (support) result.support = support;
-    if (socials !== null) result.socials = socials;
+    if (socials) result.socials = socials;
 
-    const merged = mergeWithUserPriority(localData || {}, result);
-    if (Object.keys(result).length > 0) {
-      saveLocalSiteData(merged);
-    }
-    return merged;
+    return result;
   } catch (err) {
-    console.warn('[Supabase Direct Fetch Error]:', err);
-    return localData;
+    console.error('[Supabase Direct Fetch Error]:', err);
+    return null;
   }
 };
 

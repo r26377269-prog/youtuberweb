@@ -12,9 +12,7 @@ import {
   saveSupportToSupabase,
   saveSettingsToSupabase,
   addSocialToSupabase,
-  deleteSocialFromSupabase,
-  saveLocalSiteData,
-  getLocalSiteData
+  deleteSocialFromSupabase
 } from '../lib/supabaseClient';
 
 const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -36,6 +34,7 @@ export default function AdminPortal() {
   const [token, setToken] = useState(getStoredToken);
   const [activeView, setActiveView] = useState('overview');
   const [dashboardData, setDashboardData] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [alertMsg, setAlertMsg] = useState({ type: '', text: '' });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState({ show: false, text: '', type: 'success' });
@@ -122,7 +121,7 @@ export default function AdminPortal() {
     if (token) loadDashboard();
   }, [token]);
 
-  // Read uploaded image files into Base64 Data URLs so they persist on Netlify without backend server storage
+  // Read uploaded image files into Base64 Data URLs so they persist without backend server storage
   const readFileAsDataUrl = (file) => {
     return new Promise((resolve, reject) => {
       if (!file) return resolve(null);
@@ -134,25 +133,35 @@ export default function AdminPortal() {
   };
 
   const loadDashboard = async () => {
-    const localData = getLocalSiteData() || {};
-    const sbData = await fetchAllSiteDataFromSupabase();
-    let finalData = { ...localData, ...(sbData || {}) };
+    setLoadError('');
+    let finalData = null;
 
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/dashboard-data`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const json = await res.json();
-      if (json.success && json.data) {
-        finalData = { ...localData, ...json.data, ...(sbData || {}) };
+    if (token) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/admin/dashboard-data`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+          finalData = json.data;
+        } else {
+          setLoadError(json.message || 'Unable to load website data from database.');
+        }
+      } catch (err) {
+        console.warn('API load warning:', err);
       }
-    } catch (err) {
-      console.warn('API load warning:', err);
+    }
+
+    if (!finalData) {
+      const sbData = await fetchAllSiteDataFromSupabase();
+      if (sbData && Object.keys(sbData).length > 0) {
+        finalData = sbData;
+        setLoadError('');
+      }
     }
 
     if (finalData && Object.keys(finalData).length > 0) {
       setDashboardData(finalData);
-      saveLocalSiteData(finalData);
       if (finalData.subscribers) setSubForm(finalData.subscribers);
       if (finalData.support) setSupportForm(finalData.support);
       if (finalData.settings) {
@@ -162,6 +171,8 @@ export default function AdminPortal() {
           hero_typing_texts: Array.isArray(st.hero_typing_texts) ? st.hero_typing_texts.join(', ') : (st.hero_typing_texts || '')
         });
       }
+    } else if (!finalData) {
+      setLoadError('Unable to load website data from database. Please check connection and retry.');
     }
   };
 

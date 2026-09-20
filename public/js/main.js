@@ -245,36 +245,23 @@ function initSmoothGsapAnimations() {
 
 // --- DYNAMIC CONTENT LOADER & API RENDERER ---
 async function loadPublicContent() {
-  let localData = null;
-  try {
-    const raw = localStorage.getItem('youtuber_site_data');
-    if (raw) localData = JSON.parse(raw);
-  } catch (e) {}
-
-  if (localData) {
-    if (localData.settings) renderSettings(localData.settings);
-    if (localData.streams) renderLiveStream(localData.streams);
-    if (localData.subscribers) renderSubscribers(localData.subscribers);
-    if (localData.videos) renderVideos(localData.videos);
-    if (localData.support) renderSupport(localData.support);
-    if (localData.socials) renderSocials(localData.socials);
-  }
-
   try {
     const res = await fetch('/api/public/data');
     const json = await res.json();
 
     if (json.success && json.data) {
-      const data = { ...(localData || {}), ...json.data };
-      renderSettings(data.settings);
-      renderLiveStream(data.streams);
-      renderSubscribers(data.subscribers);
-      renderVideos(data.videos);
-      renderSupport(data.support);
-      renderSocials(data.socials);
+      const data = json.data;
+      if (data.settings) renderSettings(data.settings);
+      if (data.streams) renderLiveStream(data.streams);
+      if (data.subscribers) renderSubscribers(data.subscribers);
+      if (data.videos) renderVideos(data.videos);
+      if (data.support) renderSupport(data.support);
+      if (data.socials) renderSocials(data.socials);
+    } else {
+      console.error('[Public Site Error] Failed to load website data from database:', json.message);
     }
   } catch (err) {
-    console.warn('Failed to load API public website data, using local:', err);
+    console.error('[Public Site Error] Network error loading website content:', err);
   }
 }
 

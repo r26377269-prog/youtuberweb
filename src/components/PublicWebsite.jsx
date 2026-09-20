@@ -2,13 +2,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import Lenis from '@studio-freight/lenis';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { fetchAllSiteDataFromSupabase, mergeWithUserPriority, getLocalSiteData } from '../lib/supabaseClient';
+import { fetchAllSiteDataFromSupabase } from '../lib/supabaseClient';
 
 gsap.registerPlugin(ScrollTrigger);
 gsap.config({ nullTargetWarn: false });
 
 export default function PublicWebsite() {
-  const [data, setData] = useState(() => getLocalSiteData());
+  const [data, setData] = useState(null);
   const [typingText, setTypingText] = useState('');
   const [navScrolled, setNavScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -99,13 +99,10 @@ export default function PublicWebsite() {
       }
 
       if (fetchedData && Object.keys(fetchedData).length > 0) {
-        const local = getLocalSiteData();
-        const combined = mergeWithUserPriority(local || {}, fetchedData);
-        if (combined.subscribers && combined.subscribers.count !== undefined) {
-          setDisplayCount(Number(combined.subscribers.count));
+        if (fetchedData.subscribers && fetchedData.subscribers.count !== undefined) {
+          setDisplayCount(Number(fetchedData.subscribers.count));
         }
-        setData(combined);
-        saveLocalSiteData(combined);
+        setData(fetchedData);
       }
     };
 

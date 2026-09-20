@@ -3,31 +3,35 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://mdnobmktdijxashunzbs.supabase.co';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbm9ibWt0ZGlqeGFzaHVuemJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMTAyMTIsImV4cCI6MjEwNDg4NjIxMn0.jKoh60Y8pD285w3PfjKN5mDg2zwpjkHvcVcUfVqjkqE';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbm9ibWt0ZGlqeGFzaHVuemJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTMxMDIxMiwiZXhwIjoyMTA0ODg6MjEyfQ.Cu0vtSEQpxnzoDkEESFZ4kU5SgCBRM5OacA1J9kBBnE';
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 let supabase = null;
 let isSupabaseConfigured = false;
 
-if (supabaseUrl && (supabaseServiceKey || supabaseAnonKey) && !supabaseUrl.includes('your-supabase-project-id')) {
+if (supabaseUrl && (supabaseServiceKey || supabaseAnonKey)) {
   try {
     const keyToUse = supabaseServiceKey || supabaseAnonKey;
-    supabase = createClient(supabaseUrl, keyToUse);
+    supabase = createClient(supabaseUrl, keyToUse, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
     isSupabaseConfigured = true;
-    console.log('[Supabase] Initialized successfully with URL:', supabaseUrl);
+    console.log('[Supabase] Client initialized successfully with URL:', supabaseUrl);
   } catch (err) {
-    console.warn('[Supabase] Error initializing client, using local store fallback:', err.message);
+    console.error('[Supabase Error] Client initialization failed:', err.message);
   }
 } else {
-  console.log('[Supabase] Credentials not configured in .env. Using Local Store Fallback.');
+  console.warn('[Supabase Warning] SUPABASE_URL or API keys missing from environment variables.');
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
 
-// Local File Store Fallback System (Only used if Supabase connection fails completely)
+// Local File Store Fallback System (STRICTLY DISABLED IN PRODUCTION)
 const localDbPath = path.join(__dirname, '..', 'data', 'store.json');
 
 function ensureLocalDb() {
+  if (isProduction) return;
   const dir = path.dirname(localDbPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -89,6 +93,10 @@ function ensureLocalDb() {
 let inMemoryCache = null;
 
 function readLocalDb() {
+  if (isProduction) {
+    console.warn('[Storage Warning] readLocalDb called in PRODUCTION. Local file fallback is completely disabled in production.');
+    return {};
+  }
   ensureLocalDb();
   try {
     const raw = fs.readFileSync(localDbPath, 'utf8');
@@ -104,6 +112,10 @@ function readLocalDb() {
 }
 
 function writeLocalDb(data) {
+  if (isProduction) {
+    console.warn('[Storage Warning] writeLocalDb ignored in PRODUCTION. Only Supabase DB writes are allowed.');
+    return;
+  }
   ensureLocalDb();
   inMemoryCache = { ...(inMemoryCache || {}), ...data };
   try {
@@ -117,6 +129,8 @@ module.exports = {
   supabase,
   isSupabaseConfigured,
   readLocalDb,
-  writeLocalDb
+  writeLocalDb,
+  isProduction
 };
+
 
