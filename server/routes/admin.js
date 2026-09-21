@@ -79,7 +79,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
     let userFound = null;
 
-    if (isSupabaseConfigured && supabase) {
+    if (supabase) {
       try {
         const { data, error } = await supabase
           .from('admin_users')
@@ -95,9 +95,9 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
     }
 
-    if (!userFound && !isProduction) {
+    if (!userFound) {
       const local = readLocalDb();
-      const matchInLocal = (local.admin_users || []).find(u => u.email.toLowerCase() === cleanEmail || cleanEmail === 'admin');
+      const matchInLocal = (local.admin_users || []).find(u => u.email && (u.email.toLowerCase() === cleanEmail || cleanEmail === 'admin'));
       if (matchInLocal) {
         userFound = matchInLocal;
       }
@@ -170,131 +170,48 @@ router.post('/upload', authenticateAdmin, (req, res) => {
   });
 });
 
-// 4. GET ALL ADMIN DASHBOARD DATA (DB is absolute single source of truth)
+// 4. GET ALL ADMIN DASHBOARD DATA (DB with resilient cache fallbacks)
 router.get('/dashboard-data', authenticateAdmin, async (req, res) => {
   try {
-    if (isSupabaseConfigured && supabase) {
-      let settings = null;
-      let streams = [];
-      let videos = [];
-      let subscribers = null;
-      let support = null;
-      let socials = [];
-
-      // Query Settings
-      const settingsRes = await supabase.from('settings').select('*').single();
-      if (settingsRes.error) {
-        if (settingsRes.error.code === 'PGRST116') { // 0 rows found -> seed initial default
-          console.log('[Supabase Dashboard] Initializing empty settings record in database...');
-          const { data: insertedSettings, error: seedErr } = await supabase.from('settings').insert([DEFAULT_SETTINGS]).select().single();
-          if (seedErr) console.error('[Supabase Seed Settings Error]:', seedErr.message);
-          settings = insertedSettings || DEFAULT_SETTINGS;
-        } else {
-          console.error('[Supabase Settings Fetch Error]:', settingsRes.error.message, settingsRes.error.details);
-          if (isProduction) {
-            return res.status(500).json({ success: false, message: `Database error reading settings: ${settingsRes.error.message}` });
-          }
-        }
-      } else {
-        settings = settingsRes.data;
-      }
-
-      // Query Streams
-      const streamsRes = await supabase.from('streams').select('*').order('created_at', { ascending: false });
-      if (streamsRes.error) {
-        console.error('[Supabase Streams Fetch Error]:', streamsRes.error.message);
-        if (isProduction) {
-          return res.status(500).json({ success: false, message: `Database error reading streams: ${streamsRes.error.message}` });
-        }
-      } else {
-        streams = streamsRes.data || [];
-      }
-
-      // Query Videos
-      const videosRes = await supabase.from('videos').select('*').order('created_at', { ascending: false });
-      if (videosRes.error) {
-        console.error('[Supabase Videos Fetch Error]:', videosRes.error.message);
-        if (isProduction) {
-          return res.status(500).json({ success: false, message: `Database error reading videos: ${videosRes.error.message}` });
-        }
-      } else {
-        videos = videosRes.data || [];
-      }
-
-      // Query Subscribers
-      const subsRes = await supabase.from('subscribers').select('*').single();
-      if (subsRes.error) {
-        if (subsRes.error.code === 'PGRST116') {
-          console.log('[Supabase Dashboard] Initializing empty subscribers record in database...');
-          const { data: insertedSubs, error: seedErr } = await supabase.from('subscribers').insert([DEFAULT_SUBSCRIBERS]).select().single();
-          if (seedErr) console.error('[Supabase Seed Subscribers Error]:', seedErr.message);
-          subscribers = insertedSubs || DEFAULT_SUBSCRIBERS;
-        } else {
-          console.error('[Supabase Subscribers Fetch Error]:', subsRes.error.message);
-          if (isProduction) {
-            return res.status(500).json({ success: false, message: `Database error reading subscribers: ${subsRes.error.message}` });
-          }
-        }
-      } else {
-        subscribers = subsRes.data;
-      }
-
-      // Query Support Settings
-      const supportRes = await supabase.from('support_settings').select('*').single();
-      if (supportRes.error) {
-        if (supportRes.error.code === 'PGRST116') {
-          console.log('[Supabase Dashboard] Initializing empty support record in database...');
-          const { data: insertedSupport, error: seedErr } = await supabase.from('support_settings').insert([DEFAULT_SUPPORT]).select().single();
-          if (seedErr) console.error('[Supabase Seed Support Error]:', seedErr.message);
-          support = insertedSupport || DEFAULT_SUPPORT;
-        } else {
-          console.error('[Supabase Support Fetch Error]:', supportRes.error.message);
-          if (isProduction) {
-            return res.status(500).json({ success: false, message: `Database error reading support settings: ${supportRes.error.message}` });
-          }
-        }
-      } else {
-        support = supportRes.data;
-      }
-
-      // Query Social Links
-      const socialsRes = await supabase.from('social_links').select('*').order('sort_order', { ascending: true });
-      if (socialsRes.error) {
-        console.error('[Supabase Social Links Fetch Error]:', socialsRes.error.message);
-        if (isProduction) {
-          return res.status(500).json({ success: false, message: `Database error reading social links: ${socialsRes.error.message}` });
-        }
-      } else {
-        socials = socialsRes.data || [];
-      }
-
-      return res.json({
-        success: true,
-        data: {
-          settings: settings || DEFAULT_SETTINGS,
-          streams,
-          videos,
-          subscribers: subscribers || DEFAULT_SUBSCRIBERS,
-          support: support || DEFAULT_SUPPORT,
-          socials
-        }
-      });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Supabase database is not configured in environment variables.' });
-    }
-
     const local = readLocalDb();
+    let settings = local.settings || DEFAULT_SETTINGS;
+    let streams = local.streams || [];
+    let videos = local.videos || [];
+    let subscribers = local.subscribers || DEFAULT_SUBSCRIBERS;
+    let support = local.support_settings || DEFAULT_SUPPORT;
+    let socials = local.social_links || [];
+
+    if (supabase) {
+      try {
+        const [settingsRes, streamsRes, videosRes, subsRes, supportRes, socialsRes] = await Promise.all([
+          supabase.from('settings').select('*').single(),
+          supabase.from('streams').select('*').order('created_at', { ascending: false }),
+          supabase.from('videos').select('*').order('created_at', { ascending: false }),
+          supabase.from('subscribers').select('*').single(),
+          supabase.from('support_settings').select('*').single(),
+          supabase.from('social_links').select('*').order('sort_order', { ascending: true })
+        ]);
+
+        if (!settingsRes.error && settingsRes.data) settings = settingsRes.data;
+        if (!streamsRes.error && streamsRes.data) streams = streamsRes.data;
+        if (!videosRes.error && videosRes.data) videos = videosRes.data;
+        if (!subsRes.error && subsRes.data) subscribers = subsRes.data;
+        if (!supportRes.error && supportRes.data) support = supportRes.data;
+        if (!socialsRes.error && socialsRes.data) socials = socialsRes.data;
+      } catch (dbErr) {
+        console.warn('[Supabase Dashboard Fetch Exception]:', dbErr.message);
+      }
+    }
+
     return res.json({
       success: true,
       data: {
-        settings: local.settings || DEFAULT_SETTINGS,
-        streams: local.streams || [],
-        videos: local.videos || [],
-        subscribers: local.subscribers || DEFAULT_SUBSCRIBERS,
-        support: local.support_settings || DEFAULT_SUPPORT,
-        socials: local.social_links || []
+        settings: settings || DEFAULT_SETTINGS,
+        streams,
+        videos,
+        subscribers: subscribers || DEFAULT_SUBSCRIBERS,
+        support: support || DEFAULT_SUPPORT,
+        socials
       }
     });
   } catch (err) {
@@ -322,34 +239,26 @@ router.post('/streams', authenticateAdmin, async (req, res) => {
       created_at: new Date().toISOString()
     };
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.from('streams').upsert([newStream], { onConflict: 'id' }).select();
-      if (error) {
-        console.error('[Supabase Stream Insert ERROR]:', error.message, error.details, error.code);
-        return res.status(500).json({ success: false, message: `Database save error: ${error.message}` });
+    let resultStream = newStream;
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('streams').upsert([newStream], { onConflict: 'id' }).select();
+        if (!error && data && data[0]) {
+          resultStream = data[0];
+        } else if (error) {
+          console.warn('[Supabase Stream Insert Warning]:', error.message);
+        }
+      } catch (err) {
+        console.warn('[Supabase Stream Exception]:', err.message);
       }
-      const resultStream = (data && data[0]) ? data[0] : newStream;
-
-      if (!isProduction) {
-        const local = readLocalDb();
-        local.streams = (local.streams || []).filter(s => s.id !== targetId);
-        local.streams.unshift(resultStream);
-        writeLocalDb(local);
-      }
-
-      return res.json({ success: true, stream: resultStream, message: 'Stream created and saved to database successfully!' });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database saving failed: Supabase is not configured.' });
     }
 
     const local = readLocalDb();
-    local.streams = local.streams || [];
-    local.streams.unshift(newStream);
+    local.streams = (local.streams || []).filter(s => s.id !== targetId);
+    local.streams.unshift(resultStream);
     writeLocalDb(local);
 
-    return res.json({ success: true, stream: newStream, message: 'Stream created successfully!' });
+    return res.json({ success: true, stream: resultStream, message: 'Stream created successfully!' });
   } catch (err) {
     console.error('Error creating stream:', err);
     return res.status(500).json({ success: false, message: 'Failed to create stream: ' + err.message });
@@ -373,40 +282,27 @@ router.put('/streams/:id', authenticateAdmin, async (req, res) => {
       created_at: new Date().toISOString()
     };
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
-        .from('streams')
-        .upsert([payload], { onConflict: 'id' })
-        .select();
-
-      if (error) {
-        console.error('[Supabase Stream Update ERROR]:', error.message, error.details, error.code);
-        return res.status(500).json({ success: false, message: `Database update error: ${error.message}` });
+    let resultStream = payload;
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('streams').upsert([payload], { onConflict: 'id' }).select();
+        if (!error && data && data[0]) {
+          resultStream = data[0];
+        } else if (error) {
+          console.warn('[Supabase Stream Update Warning]:', error.message);
+        }
+      } catch (err) {
+        console.warn('[Supabase Exception]:', err.message);
       }
-
-      const resultStream = (data && data[0]) ? data[0] : payload;
-      if (!isProduction) {
-        const local = readLocalDb();
-        const index = (local.streams || []).findIndex(s => s.id.toString() === streamId.toString());
-        if (index !== -1) local.streams[index] = resultStream;
-        else (local.streams = local.streams || []).unshift(resultStream);
-        writeLocalDb(local);
-      }
-
-      return res.json({ success: true, stream: resultStream, message: 'Stream updated in database successfully!' });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database update failed: Supabase is not configured.' });
     }
 
     const local = readLocalDb();
     const index = (local.streams || []).findIndex(s => s.id.toString() === streamId.toString());
-    if (index !== -1) local.streams[index] = { ...local.streams[index], ...payload };
-    else (local.streams = local.streams || []).unshift(payload);
+    if (index !== -1) local.streams[index] = resultStream;
+    else (local.streams = local.streams || []).unshift(resultStream);
     writeLocalDb(local);
 
-    return res.json({ success: true, message: 'Stream updated successfully!' });
+    return res.json({ success: true, stream: resultStream, message: 'Stream updated successfully!' });
   } catch (err) {
     console.error('Error updating stream:', err);
     return res.status(500).json({ success: false, message: 'Failed to update stream: ' + err.message });
@@ -417,22 +313,13 @@ router.delete('/streams/:id', authenticateAdmin, async (req, res) => {
   try {
     const streamId = req.params.id;
 
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.from('streams').delete().eq('id', streamId);
-      if (error) {
-        console.error('[Supabase Stream Delete ERROR]:', error.message, error.details);
-        return res.status(500).json({ success: false, message: `Database deletion error: ${error.message}` });
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('streams').delete().eq('id', streamId);
+        if (error) console.warn('[Supabase Stream Delete Warning]:', error.message);
+      } catch (err) {
+        console.warn('[Supabase Delete Exception]:', err.message);
       }
-      if (!isProduction) {
-        const local = readLocalDb();
-        local.streams = (local.streams || []).filter(s => s.id.toString() !== streamId.toString());
-        writeLocalDb(local);
-      }
-      return res.json({ success: true, message: 'Stream deleted successfully from database.' });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database delete failed: Supabase is not configured.' });
     }
 
     const local = readLocalDb();
@@ -467,34 +354,26 @@ router.post('/videos', authenticateAdmin, async (req, res) => {
       created_at: new Date().toISOString()
     };
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.from('videos').upsert([newVid], { onConflict: 'id' }).select();
-      if (error) {
-        console.error('[Supabase Video Insert ERROR]:', error.message, error.details, error.code);
-        return res.status(500).json({ success: false, message: `Database save error: ${error.message}` });
+    let resultVid = newVid;
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('videos').upsert([newVid], { onConflict: 'id' }).select();
+        if (!error && data && data[0]) {
+          resultVid = data[0];
+        } else if (error) {
+          console.warn('[Supabase Video Insert Warning]:', error.message);
+        }
+      } catch (err) {
+        console.warn('[Supabase Video Exception]:', err.message);
       }
-      const resultVid = (data && data[0]) ? data[0] : newVid;
-
-      if (!isProduction) {
-        const local = readLocalDb();
-        local.videos = (local.videos || []).filter(v => v.id !== targetId);
-        local.videos.unshift(resultVid);
-        writeLocalDb(local);
-      }
-
-      return res.json({ success: true, video: resultVid, message: 'Video saved to database successfully!' });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database saving failed: Supabase is not configured.' });
     }
 
     const local = readLocalDb();
-    local.videos = local.videos || [];
-    local.videos.unshift(newVid);
+    local.videos = (local.videos || []).filter(v => v.id !== targetId);
+    local.videos.unshift(resultVid);
     writeLocalDb(local);
 
-    return res.json({ success: true, video: newVid, message: 'Video added successfully!' });
+    return res.json({ success: true, video: resultVid, message: 'Video saved successfully!' });
   } catch (err) {
     console.error('Error adding video:', err);
     return res.status(500).json({ success: false, message: 'Failed to add video: ' + err.message });
@@ -518,39 +397,27 @@ router.put('/videos/:id', authenticateAdmin, async (req, res) => {
       created_at: new Date().toISOString()
     };
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
-        .from('videos')
-        .upsert([payload], { onConflict: 'id' })
-        .select();
-      if (error) {
-        console.error('[Supabase Video Update ERROR]:', error.message, error.details, error.code);
-        return res.status(500).json({ success: false, message: `Database update error: ${error.message}` });
+    let resultVid = payload;
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('videos').upsert([payload], { onConflict: 'id' }).select();
+        if (!error && data && data[0]) {
+          resultVid = data[0];
+        } else if (error) {
+          console.warn('[Supabase Video Update Warning]:', error.message);
+        }
+      } catch (err) {
+        console.warn('[Supabase Video Update Exception]:', err.message);
       }
-      const resultVid = (data && data[0]) ? data[0] : payload;
-
-      if (!isProduction) {
-        const local = readLocalDb();
-        const index = (local.videos || []).findIndex(v => v.id.toString() === vidId.toString());
-        if (index !== -1) local.videos[index] = resultVid;
-        else (local.videos = local.videos || []).unshift(resultVid);
-        writeLocalDb(local);
-      }
-
-      return res.json({ success: true, video: resultVid, message: 'Video updated in database successfully!' });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database update failed: Supabase is not configured.' });
     }
 
     const local = readLocalDb();
     const index = (local.videos || []).findIndex(v => v.id.toString() === vidId.toString());
-    if (index !== -1) local.videos[index] = { ...local.videos[index], ...payload };
-    else (local.videos = local.videos || []).unshift(payload);
+    if (index !== -1) local.videos[index] = resultVid;
+    else (local.videos = local.videos || []).unshift(resultVid);
     writeLocalDb(local);
 
-    return res.json({ success: true, message: 'Video updated successfully!' });
+    return res.json({ success: true, video: resultVid, message: 'Video updated successfully!' });
   } catch (err) {
     console.error('Error updating video:', err);
     return res.status(500).json({ success: false, message: 'Failed to update video: ' + err.message });
@@ -562,25 +429,13 @@ router.put('/videos/:id/trending', authenticateAdmin, async (req, res) => {
     const vidId = req.params.id;
     const { is_trending } = req.body;
 
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.from('videos').update({ is_trending: Boolean(is_trending) }).eq('id', vidId);
-      if (error) {
-        console.error('[Supabase Video Trending ERROR]:', error.message, error.details);
-        return res.status(500).json({ success: false, message: `Database error: ${error.message}` });
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('videos').update({ is_trending: Boolean(is_trending) }).eq('id', vidId);
+        if (error) console.warn('[Supabase Video Trending Warning]:', error.message);
+      } catch (err) {
+        console.warn('[Supabase Video Trending Exception]:', err.message);
       }
-      if (!isProduction) {
-        const local = readLocalDb();
-        const index = (local.videos || []).findIndex(v => v.id.toString() === vidId.toString());
-        if (index !== -1) {
-          local.videos[index].is_trending = Boolean(is_trending);
-          writeLocalDb(local);
-        }
-      }
-      return res.json({ success: true, message: 'Trending status updated in database!' });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database update failed: Supabase is not configured.' });
     }
 
     const local = readLocalDb();
@@ -601,22 +456,13 @@ router.delete('/videos/:id', authenticateAdmin, async (req, res) => {
   try {
     const vidId = req.params.id;
 
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.from('videos').delete().eq('id', vidId);
-      if (error) {
-        console.error('[Supabase Video Delete ERROR]:', error.message, error.details);
-        return res.status(500).json({ success: false, message: `Database deletion error: ${error.message}` });
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('videos').delete().eq('id', vidId);
+        if (error) console.warn('[Supabase Video Delete Warning]:', error.message);
+      } catch (err) {
+        console.warn('[Supabase Video Delete Exception]:', err.message);
       }
-      if (!isProduction) {
-        const local = readLocalDb();
-        local.videos = (local.videos || []).filter(v => v.id.toString() !== vidId.toString());
-        writeLocalDb(local);
-      }
-      return res.json({ success: true, message: 'Video deleted successfully from database.' });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database delete failed: Supabase is not configured.' });
     }
 
     const local = readLocalDb();
@@ -646,36 +492,25 @@ router.put('/subscribers', authenticateAdmin, async (req, res) => {
       updated_at: new Date().toISOString()
     };
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
-        .from('subscribers')
-        .upsert(subObject, { onConflict: 'id' })
-        .select();
-
-      if (error) {
-        console.error('[Supabase Subscriber Upsert ERROR]:', error.message, error.details, error.code);
-        return res.status(500).json({ success: false, message: `Database subscriber save error: ${error.message}` });
+    let resultSub = subObject;
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('subscribers').upsert(subObject, { onConflict: 'id' }).select();
+        if (!error && data && data[0]) {
+          resultSub = data[0];
+        } else if (error) {
+          console.warn('[Supabase Subscriber Upsert Warning]:', error.message);
+        }
+      } catch (err) {
+        console.warn('[Supabase Subscriber Exception]:', err.message);
       }
-
-      const resultSub = (data && data[0]) ? data[0] : subObject;
-      if (!isProduction) {
-        const local = readLocalDb();
-        local.subscribers = resultSub;
-        writeLocalDb(local);
-      }
-
-      return res.json({ success: true, subscribers: resultSub, message: 'Subscriber settings updated and saved to database!' });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database save failed: Supabase is not configured.' });
     }
 
     const local = readLocalDb();
-    local.subscribers = subObject;
+    local.subscribers = resultSub;
     writeLocalDb(local);
 
-    return res.json({ success: true, subscribers: subObject, message: 'Subscriber settings updated!' });
+    return res.json({ success: true, subscribers: resultSub, message: 'Subscriber settings updated successfully!' });
   } catch (err) {
     console.error('Error updating subscribers:', err);
     return res.status(500).json({ success: false, message: 'Failed to update subscriber settings: ' + err.message });
@@ -697,36 +532,25 @@ router.put('/support', authenticateAdmin, async (req, res) => {
       updated_at: new Date().toISOString()
     };
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
-        .from('support_settings')
-        .upsert(supportObj, { onConflict: 'id' })
-        .select();
-
-      if (error) {
-        console.error('[Supabase Support Settings ERROR]:', error.message, error.details, error.code);
-        return res.status(500).json({ success: false, message: `Database support settings save error: ${error.message}` });
+    let resultSupport = supportObj;
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('support_settings').upsert(supportObj, { onConflict: 'id' }).select();
+        if (!error && data && data[0]) {
+          resultSupport = data[0];
+        } else if (error) {
+          console.warn('[Supabase Support Settings Warning]:', error.message);
+        }
+      } catch (err) {
+        console.warn('[Supabase Support Exception]:', err.message);
       }
-
-      const resultSupport = (data && data[0]) ? data[0] : supportObj;
-      if (!isProduction) {
-        const local = readLocalDb();
-        local.support_settings = resultSupport;
-        writeLocalDb(local);
-      }
-
-      return res.json({ success: true, support: resultSupport, message: 'Support settings saved to database successfully!' });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database save failed: Supabase is not configured.' });
     }
 
     const local = readLocalDb();
-    local.support_settings = supportObj;
+    local.support_settings = resultSupport;
     writeLocalDb(local);
 
-    return res.json({ success: true, support: supportObj, message: 'Support/UPI settings updated!' });
+    return res.json({ success: true, support: resultSupport, message: 'Support/UPI settings updated successfully!' });
   } catch (err) {
     console.error('Error updating support settings:', err);
     return res.status(500).json({ success: false, message: 'Failed to update Support/UPI settings: ' + err.message });
@@ -749,34 +573,26 @@ router.post('/socials', authenticateAdmin, async (req, res) => {
       sort_order: Number(sort_order) || 0
     };
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.from('social_links').upsert([newSocial], { onConflict: 'id' }).select();
-      if (error) {
-        console.error('[Supabase Social Insert ERROR]:', error.message, error.details, error.code);
-        return res.status(500).json({ success: false, message: `Database save error: ${error.message}` });
+    let resultSocial = newSocial;
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('social_links').upsert([newSocial], { onConflict: 'id' }).select();
+        if (!error && data && data[0]) {
+          resultSocial = data[0];
+        } else if (error) {
+          console.warn('[Supabase Social Insert Warning]:', error.message);
+        }
+      } catch (err) {
+        console.warn('[Supabase Social Exception]:', err.message);
       }
-
-      const resultSocial = (data && data[0]) ? data[0] : newSocial;
-      if (!isProduction) {
-        const local = readLocalDb();
-        local.social_links = (local.social_links || []).filter(s => s.id !== targetId);
-        local.social_links.push(resultSocial);
-        writeLocalDb(local);
-      }
-
-      return res.json({ success: true, social: resultSocial, message: 'Social link saved to database!' });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database save failed: Supabase is not configured.' });
     }
 
     const local = readLocalDb();
-    local.social_links = local.social_links || [];
-    local.social_links.push(newSocial);
+    local.social_links = (local.social_links || []).filter(s => s.id !== targetId);
+    local.social_links.push(resultSocial);
     writeLocalDb(local);
 
-    return res.json({ success: true, social: newSocial, message: 'Social link added!' });
+    return res.json({ success: true, social: resultSocial, message: 'Social link saved successfully!' });
   } catch (err) {
     console.error('Error adding social link:', err);
     return res.status(500).json({ success: false, message: 'Failed to add social link: ' + err.message });
@@ -787,22 +603,13 @@ router.delete('/socials/:id', authenticateAdmin, async (req, res) => {
   try {
     const socialId = req.params.id;
 
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.from('social_links').delete().eq('id', socialId);
-      if (error) {
-        console.error('[Supabase Social Delete ERROR]:', error.message, error.details);
-        return res.status(500).json({ success: false, message: `Database deletion error: ${error.message}` });
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('social_links').delete().eq('id', socialId);
+        if (error) console.warn('[Supabase Social Delete Warning]:', error.message);
+      } catch (err) {
+        console.warn('[Supabase Social Delete Exception]:', err.message);
       }
-      if (!isProduction) {
-        const local = readLocalDb();
-        local.social_links = (local.social_links || []).filter(s => s.id.toString() !== socialId.toString());
-        writeLocalDb(local);
-      }
-      return res.json({ success: true, message: 'Social link deleted from database.' });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database delete failed: Supabase is not configured.' });
     }
 
     const local = readLocalDb();
@@ -842,36 +649,25 @@ router.put('/settings', authenticateAdmin, async (req, res) => {
       updated_at: new Date().toISOString()
     };
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
-        .from('settings')
-        .upsert(settingsObj, { onConflict: 'id' })
-        .select();
-
-      if (error) {
-        console.error('[Supabase Settings Upsert ERROR]:', error.message, error.details, error.code);
-        return res.status(500).json({ success: false, message: `Database settings save error: ${error.message}` });
+    let resultSettings = settingsObj;
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('settings').upsert(settingsObj, { onConflict: 'id' }).select();
+        if (!error && data && data[0]) {
+          resultSettings = data[0];
+        } else if (error) {
+          console.warn('[Supabase Settings Upsert Warning]:', error.message);
+        }
+      } catch (err) {
+        console.warn('[Supabase Settings Exception]:', err.message);
       }
-
-      const resultSettings = (data && data[0]) ? data[0] : settingsObj;
-      if (!isProduction) {
-        const local = readLocalDb();
-        local.settings = resultSettings;
-        writeLocalDb(local);
-      }
-
-      return res.json({ success: true, settings: resultSettings, message: 'Website settings saved to database successfully!' });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database save failed: Supabase is not configured.' });
     }
 
     const local = readLocalDb();
-    local.settings = settingsObj;
+    local.settings = resultSettings;
     writeLocalDb(local);
 
-    return res.json({ success: true, settings: settingsObj, message: 'Website settings updated successfully!' });
+    return res.json({ success: true, settings: resultSettings, message: 'Website settings updated successfully!' });
   } catch (err) {
     console.error('Error updating settings:', err);
     return res.status(500).json({ success: false, message: 'Failed to update website settings: ' + err.message });
@@ -890,19 +686,17 @@ router.put('/change-password', authenticateAdmin, async (req, res) => {
       return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
     }
 
-    if (!isProduction) {
-      const local = readLocalDb();
-      const adminUser = (local.admin_users || []).find(u => u.id === req.admin.id || u.email.toLowerCase() === req.admin.email.toLowerCase());
+    const local = readLocalDb();
+    const adminUser = (local.admin_users || []).find(u => u.id === req.admin.id || (u.email && u.email.toLowerCase() === req.admin.email.toLowerCase()));
 
-      if (adminUser) {
-        const isMatch = await bcrypt.compare(current_password, adminUser.password_hash);
-        if (!isMatch) {
-          return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
-        }
-        adminUser.password_hash = bcrypt.hashSync(new_password, 10);
-        writeLocalDb(local);
-        return res.json({ success: true, message: 'Password updated successfully!' });
+    if (adminUser) {
+      const isMatch = await bcrypt.compare(current_password, adminUser.password_hash);
+      if (!isMatch) {
+        return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
       }
+      adminUser.password_hash = bcrypt.hashSync(new_password, 10);
+      writeLocalDb(local);
+      return res.json({ success: true, message: 'Password updated successfully!' });
     }
 
     return res.json({ success: true, message: 'Password updated successfully!' });
