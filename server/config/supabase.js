@@ -3,9 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://mdnobmktdijxashunzbs.supabase.co';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbm9ibWt0ZGlqeGFzaHVuemJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMTAyMTIsImV4cCI6MjEwNDg4NjIxMn0.jKoh60Y8pD285w3PfjKN5mDg2zwpjkHvcVcUfVqjkqE';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kbm9ibWt0ZGlqeGFzaHVuemJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTMxMDIxMiwiZXhwIjoyMTA0ODg2MjEyfQ.Cu0vtSEQpxnzoDkEESFZ4kU5SgCBRM5OacA1J9kBBnE';
 
 let supabase = null;
 let isSupabaseConfigured = false;
@@ -93,33 +93,27 @@ function ensureLocalDb() {
 let inMemoryCache = null;
 
 function readLocalDb() {
-  if (isProduction) {
-    console.warn('[Storage Warning] readLocalDb called in PRODUCTION. Local file fallback is completely disabled in production.');
-    return {};
-  }
-  ensureLocalDb();
+  if (inMemoryCache) return inMemoryCache;
   try {
-    const raw = fs.readFileSync(localDbPath, 'utf8');
-    const diskData = JSON.parse(raw);
-    if (!inMemoryCache) {
-      inMemoryCache = diskData;
+    ensureLocalDb();
+    if (fs.existsSync(localDbPath)) {
+      const raw = fs.readFileSync(localDbPath, 'utf8');
+      inMemoryCache = JSON.parse(raw);
+      return inMemoryCache;
     }
-    return inMemoryCache;
   } catch (err) {
-    console.error('Error reading local DB:', err);
-    return inMemoryCache || {};
+    console.error('Error reading local DB:', err.message);
   }
+  return inMemoryCache || {};
 }
 
 function writeLocalDb(data) {
-  if (isProduction) {
-    console.warn('[Storage Warning] writeLocalDb ignored in PRODUCTION. Only Supabase DB writes are allowed.');
-    return;
-  }
-  ensureLocalDb();
   inMemoryCache = { ...(inMemoryCache || {}), ...data };
   try {
-    fs.writeFileSync(localDbPath, JSON.stringify(inMemoryCache, null, 2));
+    ensureLocalDb();
+    if (fs.existsSync(path.dirname(localDbPath))) {
+      fs.writeFileSync(localDbPath, JSON.stringify(inMemoryCache, null, 2));
+    }
   } catch (err) {
     console.warn('Could not write to local store.json:', err.message);
   }

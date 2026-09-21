@@ -57,55 +57,43 @@ const getPublicData = async (req, res) => {
       ]);
 
       if (settingsRes.error) {
-        if (settingsRes.error.code === 'PGRST116') {
-          settings = DEFAULT_SETTINGS;
-        } else {
-          console.error('[Supabase Public Settings Error]:', settingsRes.error.message, settingsRes.error.details);
-          return res.status(500).json({ success: false, message: `Database error reading settings: ${settingsRes.error.message}` });
-        }
+        console.warn('[Supabase Public Settings Warning]:', settingsRes.error.message);
+        settings = DEFAULT_SETTINGS;
       } else {
-        settings = settingsRes.data;
+        settings = settingsRes.data || DEFAULT_SETTINGS;
       }
 
       if (streamsRes.error) {
-        console.error('[Supabase Public Streams Error]:', streamsRes.error.message);
-        return res.status(500).json({ success: false, message: `Database error reading streams: ${streamsRes.error.message}` });
+        console.warn('[Supabase Public Streams Warning]:', streamsRes.error.message);
+        streams = [];
       } else {
         streams = streamsRes.data || [];
       }
 
       if (videosRes.error) {
-        console.error('[Supabase Public Videos Error]:', videosRes.error.message);
-        return res.status(500).json({ success: false, message: `Database error reading videos: ${videosRes.error.message}` });
+        console.warn('[Supabase Public Videos Warning]:', videosRes.error.message);
+        videos = [];
       } else {
         videos = videosRes.data || [];
       }
 
       if (subsRes.error) {
-        if (subsRes.error.code === 'PGRST116') {
-          subscribers = DEFAULT_SUBSCRIBERS;
-        } else {
-          console.error('[Supabase Public Subscribers Error]:', subsRes.error.message);
-          return res.status(500).json({ success: false, message: `Database error reading subscribers: ${subsRes.error.message}` });
-        }
+        console.warn('[Supabase Public Subscribers Warning]:', subsRes.error.message);
+        subscribers = DEFAULT_SUBSCRIBERS;
       } else {
-        subscribers = subsRes.data;
+        subscribers = subsRes.data || DEFAULT_SUBSCRIBERS;
       }
 
       if (supportRes.error) {
-        if (supportRes.error.code === 'PGRST116') {
-          support = DEFAULT_SUPPORT;
-        } else {
-          console.error('[Supabase Public Support Error]:', supportRes.error.message);
-          return res.status(500).json({ success: false, message: `Database error reading support settings: ${supportRes.error.message}` });
-        }
+        console.warn('[Supabase Public Support Warning]:', supportRes.error.message);
+        support = DEFAULT_SUPPORT;
       } else {
-        support = supportRes.data;
+        support = supportRes.data || DEFAULT_SUPPORT;
       }
 
       if (socialsRes.error) {
-        console.error('[Supabase Public Socials Error]:', socialsRes.error.message);
-        return res.status(500).json({ success: false, message: `Database error reading social links: ${socialsRes.error.message}` });
+        console.warn('[Supabase Public Socials Warning]:', socialsRes.error.message);
+        socials = [];
       } else {
         socials = socialsRes.data || [];
       }
@@ -121,10 +109,6 @@ const getPublicData = async (req, res) => {
           socials
         }
       });
-    }
-
-    if (isProduction) {
-      return res.status(500).json({ success: false, message: 'Database read failed: Supabase is not configured in environment variables.' });
     }
 
     const local = readLocalDb();
