@@ -38,7 +38,7 @@ const DEFAULT_SETTINGS = {
   id: 1,
   website_title: 'CREATOR • Official YouTuber Website',
   creator_name: 'ALEX VANCE',
-  profile_image: '/images/profile.jpg',
+  profile_image: '/img/prgp.jpg',
   logo_url: '',
   hero_welcome_text: 'WELCOME TO THE CHANNEL',
   hero_typing_texts: ['GAMING', 'LIVE STREAMS', 'TECH REVIEWS', 'DAILY VLOGS'],
@@ -50,7 +50,7 @@ const DEFAULT_SETTINGS = {
 
 const DEFAULT_SUBSCRIBERS = {
   id: 1,
-  count: 1245890,
+  count: 42800,
   is_api_enabled: false,
   youtube_channel_id: '',
   youtube_api_key: '',
@@ -246,10 +246,12 @@ router.post('/streams', authenticateAdmin, async (req, res) => {
         if (!error && data && data[0]) {
           resultStream = data[0];
         } else if (error) {
-          console.warn('[Supabase Stream Insert Warning]:', error.message);
+          console.error('[Supabase Stream Insert Error]:', error.message);
+          return res.status(500).json({ success: false, message: 'Database stream save failed: ' + error.message });
         }
       } catch (err) {
-        console.warn('[Supabase Stream Exception]:', err.message);
+        console.error('[Supabase Stream Exception]:', err.message);
+        return res.status(500).json({ success: false, message: 'Database stream save exception: ' + err.message });
       }
     }
 
@@ -289,10 +291,12 @@ router.put('/streams/:id', authenticateAdmin, async (req, res) => {
         if (!error && data && data[0]) {
           resultStream = data[0];
         } else if (error) {
-          console.warn('[Supabase Stream Update Warning]:', error.message);
+          console.error('[Supabase Stream Update Error]:', error.message);
+          return res.status(500).json({ success: false, message: 'Database stream update failed: ' + error.message });
         }
       } catch (err) {
-        console.warn('[Supabase Exception]:', err.message);
+        console.error('[Supabase Exception]:', err.message);
+        return res.status(500).json({ success: false, message: 'Database stream update exception: ' + err.message });
       }
     }
 
@@ -316,9 +320,13 @@ router.delete('/streams/:id', authenticateAdmin, async (req, res) => {
     if (supabase) {
       try {
         const { error } = await supabase.from('streams').delete().eq('id', streamId);
-        if (error) console.warn('[Supabase Stream Delete Warning]:', error.message);
+        if (error) {
+          console.error('[Supabase Stream Delete Error]:', error.message);
+          return res.status(500).json({ success: false, message: 'Database stream delete failed: ' + error.message });
+        }
       } catch (err) {
-        console.warn('[Supabase Delete Exception]:', err.message);
+        console.error('[Supabase Delete Exception]:', err.message);
+        return res.status(500).json({ success: false, message: 'Database stream delete exception: ' + err.message });
       }
     }
 
@@ -361,10 +369,12 @@ router.post('/videos', authenticateAdmin, async (req, res) => {
         if (!error && data && data[0]) {
           resultVid = data[0];
         } else if (error) {
-          console.warn('[Supabase Video Insert Warning]:', error.message);
+          console.error('[Supabase Video Insert Error]:', error.message);
+          return res.status(500).json({ success: false, message: 'Database video save failed: ' + error.message });
         }
       } catch (err) {
-        console.warn('[Supabase Video Exception]:', err.message);
+        console.error('[Supabase Video Exception]:', err.message);
+        return res.status(500).json({ success: false, message: 'Database video save exception: ' + err.message });
       }
     }
 
@@ -404,10 +414,12 @@ router.put('/videos/:id', authenticateAdmin, async (req, res) => {
         if (!error && data && data[0]) {
           resultVid = data[0];
         } else if (error) {
-          console.warn('[Supabase Video Update Warning]:', error.message);
+          console.error('[Supabase Video Update Error]:', error.message);
+          return res.status(500).json({ success: false, message: 'Database video update failed: ' + error.message });
         }
       } catch (err) {
-        console.warn('[Supabase Video Update Exception]:', err.message);
+        console.error('[Supabase Video Update Exception]:', err.message);
+        return res.status(500).json({ success: false, message: 'Database video update exception: ' + err.message });
       }
     }
 
@@ -432,9 +444,13 @@ router.put('/videos/:id/trending', authenticateAdmin, async (req, res) => {
     if (supabase) {
       try {
         const { error } = await supabase.from('videos').update({ is_trending: Boolean(is_trending) }).eq('id', vidId);
-        if (error) console.warn('[Supabase Video Trending Warning]:', error.message);
+        if (error) {
+          console.error('[Supabase Video Trending Error]:', error.message);
+          return res.status(500).json({ success: false, message: 'Database trending status update failed: ' + error.message });
+        }
       } catch (err) {
-        console.warn('[Supabase Video Trending Exception]:', err.message);
+        console.error('[Supabase Video Trending Exception]:', err.message);
+        return res.status(500).json({ success: false, message: 'Database trending update exception: ' + err.message });
       }
     }
 
@@ -459,9 +475,13 @@ router.delete('/videos/:id', authenticateAdmin, async (req, res) => {
     if (supabase) {
       try {
         const { error } = await supabase.from('videos').delete().eq('id', vidId);
-        if (error) console.warn('[Supabase Video Delete Warning]:', error.message);
+        if (error) {
+          console.error('[Supabase Video Delete Error]:', error.message);
+          return res.status(500).json({ success: false, message: 'Database video delete failed: ' + error.message });
+        }
       } catch (err) {
-        console.warn('[Supabase Video Delete Exception]:', err.message);
+        console.error('[Supabase Video Delete Exception]:', err.message);
+        return res.status(500).json({ success: false, message: 'Database video delete exception: ' + err.message });
       }
     }
 
@@ -500,9 +520,11 @@ router.put('/subscribers', authenticateAdmin, async (req, res) => {
           resultSub = data[0];
         } else if (error) {
           console.warn('[Supabase Subscriber Upsert Warning]:', error.message);
+          return res.status(500).json({ success: false, message: 'Database save failed: ' + error.message });
         }
       } catch (err) {
         console.warn('[Supabase Subscriber Exception]:', err.message);
+        return res.status(500).json({ success: false, message: 'Database save exception: ' + err.message });
       }
     }
 
@@ -540,9 +562,11 @@ router.put('/support', authenticateAdmin, async (req, res) => {
           resultSupport = data[0];
         } else if (error) {
           console.warn('[Supabase Support Settings Warning]:', error.message);
+          return res.status(500).json({ success: false, message: 'Database save failed: ' + error.message });
         }
       } catch (err) {
         console.warn('[Supabase Support Exception]:', err.message);
+        return res.status(500).json({ success: false, message: 'Database save exception: ' + err.message });
       }
     }
 
@@ -580,10 +604,12 @@ router.post('/socials', authenticateAdmin, async (req, res) => {
         if (!error && data && data[0]) {
           resultSocial = data[0];
         } else if (error) {
-          console.warn('[Supabase Social Insert Warning]:', error.message);
+          console.error('[Supabase Social Insert Error]:', error.message);
+          return res.status(500).json({ success: false, message: 'Database social link save failed: ' + error.message });
         }
       } catch (err) {
-        console.warn('[Supabase Social Exception]:', err.message);
+        console.error('[Supabase Social Exception]:', err.message);
+        return res.status(500).json({ success: false, message: 'Database social link save exception: ' + err.message });
       }
     }
 
@@ -606,9 +632,13 @@ router.delete('/socials/:id', authenticateAdmin, async (req, res) => {
     if (supabase) {
       try {
         const { error } = await supabase.from('social_links').delete().eq('id', socialId);
-        if (error) console.warn('[Supabase Social Delete Warning]:', error.message);
+        if (error) {
+          console.error('[Supabase Social Delete Error]:', error.message);
+          return res.status(500).json({ success: false, message: 'Database social link delete failed: ' + error.message });
+        }
       } catch (err) {
-        console.warn('[Supabase Social Delete Exception]:', err.message);
+        console.error('[Supabase Social Delete Exception]:', err.message);
+        return res.status(500).json({ success: false, message: 'Database social link delete exception: ' + err.message });
       }
     }
 
@@ -657,9 +687,11 @@ router.put('/settings', authenticateAdmin, async (req, res) => {
           resultSettings = data[0];
         } else if (error) {
           console.warn('[Supabase Settings Upsert Warning]:', error.message);
+          return res.status(500).json({ success: false, message: 'Database save failed: ' + error.message });
         }
       } catch (err) {
         console.warn('[Supabase Settings Exception]:', err.message);
+        return res.status(500).json({ success: false, message: 'Database save exception: ' + err.message });
       }
     }
 

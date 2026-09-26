@@ -416,8 +416,8 @@ export default function PublicWebsite() {
           {/* BRAND PILL LEFT */}
           <a href="#home" className="nav-brand-pill">
             <img 
-              src={getValidImgSrc(settings.profile_image, "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=150&q=80")} 
-              onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=150&q=80"; }} 
+              src={getValidImgSrc(settings.profile_image, "/img/prgp.jpg")} 
+              onError={(e) => { e.target.onerror = null; e.target.src = "/img/prgp.jpg"; }} 
               alt="Profile" 
             />
             <span className="brand-name-text">{settings.creator_name || "ALEX VANCE"}</span>
@@ -532,8 +532,8 @@ export default function PublicWebsite() {
           <div className="hero-spotlight-card">
             <div className="hero-avatar-frame">
               <img 
-                src={getValidImgSrc(settings.profile_image, "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80")} 
-                onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80"; }} 
+                src={getValidImgSrc(settings.profile_image, "/img/prgp.jpg")} 
+                onError={(e) => { e.target.onerror = null; e.target.src = "/img/prgp.jpg"; }} 
                 alt="Creator Avatar" 
               />
               <div className="hero-live-tag">{mainStream?.status || "ONLINE"}</div>
@@ -646,8 +646,8 @@ export default function PublicWebsite() {
         <div className="about-layout">
           <div className="about-image-card">
             <img 
-              src={getValidImgSrc(settings.profile_image, "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80")} 
-              onError={(e) => { e.target.onerror = null; e.target.src = "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80"; }} 
+              src={getValidImgSrc(settings.profile_image, "/img/prgp.jpg")} 
+              onError={(e) => { e.target.onerror = null; e.target.src = "/img/prgp.jpg"; }} 
               alt="About Creator" 
             />
           </div>

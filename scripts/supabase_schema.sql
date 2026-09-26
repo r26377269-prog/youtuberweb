@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS settings (
   id INT PRIMARY KEY DEFAULT 1,
   website_title TEXT DEFAULT 'CREATOR • Official YouTuber Website',
   creator_name TEXT DEFAULT 'ALEX VANCE',
-  profile_image TEXT DEFAULT '/images/profile.jpg',
+  profile_image TEXT DEFAULT '/img/prgp.jpg',
   logo_url TEXT DEFAULT '',
   hero_welcome_text TEXT DEFAULT 'WELCOME TO THE CHANNEL',
   hero_typing_texts JSONB DEFAULT '["GAMING", "LIVE STREAMS", "TECH REVIEWS", "DAILY VLOGS"]'::jsonb,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS videos (
 -- 4. SUBSCRIBERS TABLE
 CREATE TABLE IF NOT EXISTS subscribers (
   id INT PRIMARY KEY DEFAULT 1,
-  count INT DEFAULT 1245890,
+  count INT DEFAULT 42800,
   is_api_enabled BOOLEAN DEFAULT false,
   youtube_channel_id TEXT DEFAULT '',
   youtube_api_key TEXT DEFAULT '',

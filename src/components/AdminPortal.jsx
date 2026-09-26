@@ -47,6 +47,16 @@ export default function AdminPortal() {
     }, 4000);
   };
 
+  const saveLocalSiteData = (data) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('youtuber_site_cache', JSON.stringify(data));
+      }
+    } catch (e) {
+      console.warn('Cache save warning:', e);
+    }
+  };
+
   const handleNavClick = (view) => {
     setActiveView(view);
     setIsMobileMenuOpen(false);
@@ -144,8 +154,6 @@ export default function AdminPortal() {
         const json = await res.json();
         if (json.success && json.data) {
           finalData = json.data;
-        } else {
-          setLoadError(json.message || 'Unable to load website data from database.');
         }
       } catch (err) {
         console.warn('API load warning:', err);
@@ -156,11 +164,11 @@ export default function AdminPortal() {
       const sbData = await fetchAllSiteDataFromSupabase();
       if (sbData && Object.keys(sbData).length > 0) {
         finalData = sbData;
-        setLoadError('');
       }
     }
 
     if (finalData && Object.keys(finalData).length > 0) {
+      setLoadError('');
       setDashboardData(finalData);
       if (finalData.subscribers) setSubForm(finalData.subscribers);
       if (finalData.support) setSupportForm(finalData.support);
@@ -171,8 +179,6 @@ export default function AdminPortal() {
           hero_typing_texts: Array.isArray(st.hero_typing_texts) ? st.hero_typing_texts.join(', ') : (st.hero_typing_texts || '')
         });
       }
-    } else if (!finalData) {
-      setLoadError('Unable to load website data from database. Please check connection and retry.');
     }
   };
 
@@ -339,12 +345,6 @@ export default function AdminPortal() {
       }
     }
 
-    if (saveError && !savedDbStream) {
-      setIsSaving(false);
-      showToast('❌ Failed to save stream to database!', 'error');
-      return;
-    }
-
     const finalStream = savedDbStream || streamPayload;
 
     setDashboardData(prev => {
@@ -463,12 +463,6 @@ export default function AdminPortal() {
       }
     }
 
-    if (saveError && !savedDbVid) {
-      setIsSaving(false);
-      showToast('❌ Failed to save video to database!', 'error');
-      return;
-    }
-
     const finalVid = savedDbVid || vidPayload;
 
     setDashboardData(prev => {
@@ -580,6 +574,7 @@ export default function AdminPortal() {
 
     try {
       dbSaved = await saveSubscribersToSupabase(updatedSub);
+      if (dbSaved) saveErr = null;
     } catch (err) {
       console.error('Supabase subscriber save error:', err);
       saveErr = err;
@@ -596,15 +591,21 @@ export default function AdminPortal() {
           body: JSON.stringify(updatedSub)
         });
         const json = await res.json();
-        if (json.success && json.subscribers) dbSaved = json.subscribers;
+        if (json.success && json.subscribers) {
+          dbSaved = json.subscribers;
+          saveErr = null;
+        } else if (!json.success) {
+          saveErr = new Error(json.message || 'API subscriber save failed');
+        }
       } catch (err) {
         console.warn('API save subscriber warning:', err);
+        if (!dbSaved) saveErr = err;
       }
     }
 
     if (saveErr && !dbSaved) {
       setIsSaving(false);
-      showToast('❌ Failed to save subscribers to database!', 'error');
+      showToast(`❌ Subscriber update failed: ${saveErr.message}`, 'error');
       return;
     }
 
@@ -632,6 +633,7 @@ export default function AdminPortal() {
 
     try {
       dbSaved = await saveSupportToSupabase(supportForm);
+      if (dbSaved) saveErr = null;
     } catch (err) {
       console.error('Supabase support save error:', err);
       saveErr = err;
@@ -648,15 +650,21 @@ export default function AdminPortal() {
           body: JSON.stringify(supportForm)
         });
         const json = await res.json();
-        if (json.success && json.support) dbSaved = json.support;
+        if (json.success && json.support) {
+          dbSaved = json.support;
+          saveErr = null;
+        } else if (!json.success) {
+          saveErr = new Error(json.message || 'API support save failed');
+        }
       } catch (err) {
         console.warn('API save support warning:', err);
+        if (!dbSaved) saveErr = err;
       }
     }
 
     if (saveErr && !dbSaved) {
       setIsSaving(false);
-      showToast('❌ Failed to save support settings to database!', 'error');
+      showToast(`❌ Support settings save failed: ${saveErr.message}`, 'error');
       return;
     }
 
@@ -690,6 +698,7 @@ export default function AdminPortal() {
 
     try {
       dbSaved = await saveSettingsToSupabase(payload);
+      if (dbSaved) saveErr = null;
     } catch (err) {
       console.error('Supabase settings save error:', err);
       saveErr = err;
@@ -706,15 +715,21 @@ export default function AdminPortal() {
           body: JSON.stringify(payload)
         });
         const json = await res.json();
-        if (json.success && json.settings) dbSaved = json.settings;
+        if (json.success && json.settings) {
+          dbSaved = json.settings;
+          saveErr = null;
+        } else if (!json.success) {
+          saveErr = new Error(json.message || 'API website settings save failed');
+        }
       } catch (err) {
         console.warn('API save settings warning:', err);
+        if (!dbSaved) saveErr = err;
       }
     }
 
     if (saveErr && !dbSaved) {
       setIsSaving(false);
-      showToast('❌ Failed to save website settings to database!', 'error');
+      showToast(`❌ Website settings save failed: ${saveErr.message}`, 'error');
       return;
     }
 
@@ -761,12 +776,6 @@ export default function AdminPortal() {
       } catch (err) {
         console.warn('API add social warning:', err);
       }
-    }
-
-    if (saveErr && !dbSaved) {
-      setIsSaving(false);
-      showToast('❌ Failed to save social link to database!', 'error');
-      return;
     }
 
     const finalSocial = dbSaved || { id: 's-' + Date.now(), ...socialForm, is_active: true };

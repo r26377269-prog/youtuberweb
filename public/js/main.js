@@ -363,7 +363,7 @@ function startCountdownTimer(dateStr, timeStr) {
 
 function renderSubscribers(subData) {
   if (!subData) return;
-  window.currentSubCount = subData.count || 1245890;
+  window.currentSubCount = subData.count || 42800;
 
   const counterValEl = document.getElementById('subscriber-counter-val');
   if (counterValEl && subData.counter_font) {

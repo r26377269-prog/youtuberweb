@@ -3,7 +3,7 @@
     "id": 1,
     "website_title": "SavouR GaminG",
     "creator_name": "SavouR GaminG",
-    "profile_image": "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=800&q=80",
+    "profile_image": "/img/prgp.jpg",
     "logo_url": "",
     "hero_welcome_text": "WELCOME TO THE SavouR GaminG",
     "hero_typing_texts": [
@@ -77,7 +77,7 @@
   ],
   "subscribers": {
     "id": 1,
-    "count": 0,
+    "count": 42800,
     "is_api_enabled": false,
     "youtube_channel_id": "",
     "youtube_api_key": "",

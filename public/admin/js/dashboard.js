@@ -74,28 +74,43 @@ async function loadDashboardData() {
   const token = getAdminToken();
   if (!token) return;
 
-  try {
-    const res = await fetch(API_BASE_URL + '/api/admin/dashboard-data', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const json = await res.json();
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(API_BASE_URL + '/api/admin/dashboard-data', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        if (attempt < 3) {
+          await new Promise(r => setTimeout(r, 1500));
+          continue;
+        }
+      }
+      const json = await res.json();
 
-    if (json.success && json.data) {
-      currentDashboardData = json.data;
-      renderOverviewStats();
-      renderStreamsTable();
-      renderVideosTable();
-      renderSubscribersTable();
-      populateSupportForm();
-      renderSocialsTable();
-      populateSettingsForm();
-    } else {
-      console.error('[Dashboard Error] Failed to fetch database data:', json.message);
-      alert('Unable to load website data from database: ' + (json.message || 'Server error'));
+      if (json.success && json.data) {
+        currentDashboardData = json.data;
+        renderOverviewStats();
+        renderStreamsTable();
+        renderVideosTable();
+        renderSubscribersTable();
+        populateSupportForm();
+        renderSocialsTable();
+        populateSettingsForm();
+        return;
+      } else {
+        console.warn('[Dashboard Warning] API returned error on attempt ' + attempt + ':', json.message);
+        if (attempt < 3) {
+          await new Promise(r => setTimeout(r, 1500));
+          continue;
+        }
+      }
+    } catch (err) {
+      console.warn('[Dashboard Warning] Network exception on attempt ' + attempt + ':', err);
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
     }
-  } catch (err) {
-    console.error('[Dashboard Error] Network exception fetching dashboard data:', err);
-    alert('Unable to connect to backend server. Please check your connection and retry.');
   }
 }
 
@@ -460,7 +475,7 @@ function renderSubscribersTable() {
       <td><strong><i class="fa-solid fa-calculator" style="color:var(--sky-accent); margin-right:8px;"></i> Live Subscriber Count</strong></td>
       <td>
         <div style="display:flex; align-items:center; gap:8px;">
-          <input type="number" id="inline-sub-count-input" value="${s.count !== undefined ? s.count : 1245890}" style="padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 800; font-size: 1.1rem; width: 130px;" />
+          <input type="number" id="inline-sub-count-input" value="${s.count !== undefined ? s.count : 42800}" style="padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 800; font-size: 1.1rem; width: 130px;" />
           <button class="btn-sm btn-edit" onclick="saveInlineSubCount()"><i class="fa-solid fa-check"></i> Save</button>
         </div>
       </td>
@@ -666,7 +681,7 @@ function openEditSubModal(targetField) {
   const apiKeyInput = document.getElementById('sub-api-key-input');
   const subModal = document.getElementById('sub-modal');
 
-  if (countInput) countInput.value = s.count !== undefined ? s.count : 1245890;
+  if (countInput) countInput.value = s.count !== undefined ? s.count : 42800;
   if (fontSelect) fontSelect.value = s.counter_font || "'Bebas Neue', sans-serif";
   if (apiToggle) apiToggle.checked = Boolean(s.is_api_enabled);
   if (channelInput) channelInput.value = s.youtube_channel_id || '';
@@ -691,7 +706,7 @@ function closeSubModal() {
 async function saveSubscriberSettings(e) {
   e.preventDefault();
   const token = getAdminToken();
-  const countVal = document.getElementById('sub-count-input') ? document.getElementById('sub-count-input').value : '1245890';
+  const countVal = document.getElementById('sub-count-input') ? document.getElementById('sub-count-input').value : '42800';
   const count = Number(countVal) || 0;
   const counter_font = document.getElementById('sub-font-select') ? document.getElementById('sub-font-select').value : "'Bebas Neue', sans-serif";
   const is_api_enabled = document.getElementById('sub-api-toggle') ? document.getElementById('sub-api-toggle').checked : false;

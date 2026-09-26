@@ -43,7 +43,7 @@ function ensureLocalDb() {
         id: 1,
         website_title: 'CREATOR • Official YouTuber Website',
         creator_name: 'ALEX VANCE',
-        profile_image: '/images/profile.jpg',
+        profile_image: '/img/prgp.jpg',
         logo_url: '',
         hero_welcome_text: 'WELCOME TO THE CHANNEL',
         hero_typing_texts: ['GAMING', 'LIVE STREAMS', 'TECH REVIEWS', 'DAILY VLOGS'],
@@ -56,7 +56,7 @@ function ensureLocalDb() {
       videos: [],
       subscribers: {
         id: 1,
-        count: 1245890,
+        count: 42800,
         is_api_enabled: false,
         youtube_channel_id: '',
         youtube_api_key: '',

@@ -6,7 +6,7 @@ const DEFAULT_SETTINGS = {
   id: 1,
   website_title: 'CREATOR • Official YouTuber Website',
   creator_name: 'ALEX VANCE',
-  profile_image: '/images/profile.jpg',
+  profile_image: '/img/prgp.jpg',
   logo_url: '',
   hero_welcome_text: 'WELCOME TO THE CHANNEL',
   hero_typing_texts: ['GAMING', 'LIVE STREAMS', 'TECH REVIEWS', 'DAILY VLOGS'],
@@ -18,7 +18,7 @@ const DEFAULT_SETTINGS = {
 
 const DEFAULT_SUBSCRIBERS = {
   id: 1,
-  count: 1245890,
+  count: 42800,
   is_api_enabled: false,
   youtube_channel_id: '',
   youtube_api_key: '',
@@ -56,46 +56,48 @@ const getPublicData = async (req, res) => {
         supabase.from('social_links').select('*').eq('is_active', true).order('sort_order', { ascending: true })
       ]);
 
+      const localData = readLocalDb();
+
       if (settingsRes.error) {
         console.warn('[Supabase Public Settings Warning]:', settingsRes.error.message);
-        settings = DEFAULT_SETTINGS;
+        settings = localData.settings || DEFAULT_SETTINGS;
       } else {
-        settings = settingsRes.data || DEFAULT_SETTINGS;
+        settings = settingsRes.data || localData.settings || DEFAULT_SETTINGS;
       }
 
       if (streamsRes.error) {
         console.warn('[Supabase Public Streams Warning]:', streamsRes.error.message);
-        streams = [];
+        streams = localData.streams || [];
       } else {
-        streams = streamsRes.data || [];
+        streams = Array.isArray(streamsRes.data) ? streamsRes.data : (localData.streams || []);
       }
 
       if (videosRes.error) {
         console.warn('[Supabase Public Videos Warning]:', videosRes.error.message);
-        videos = [];
+        videos = (localData.videos || []).filter(v => v.status === 'published');
       } else {
-        videos = videosRes.data || [];
+        videos = Array.isArray(videosRes.data) ? videosRes.data : (localData.videos || []).filter(v => v.status === 'published');
       }
 
       if (subsRes.error) {
         console.warn('[Supabase Public Subscribers Warning]:', subsRes.error.message);
-        subscribers = DEFAULT_SUBSCRIBERS;
+        subscribers = localData.subscribers || DEFAULT_SUBSCRIBERS;
       } else {
-        subscribers = subsRes.data || DEFAULT_SUBSCRIBERS;
+        subscribers = subsRes.data || localData.subscribers || DEFAULT_SUBSCRIBERS;
       }
 
       if (supportRes.error) {
         console.warn('[Supabase Public Support Warning]:', supportRes.error.message);
-        support = DEFAULT_SUPPORT;
+        support = localData.support_settings || DEFAULT_SUPPORT;
       } else {
-        support = supportRes.data || DEFAULT_SUPPORT;
+        support = supportRes.data || localData.support_settings || DEFAULT_SUPPORT;
       }
 
       if (socialsRes.error) {
         console.warn('[Supabase Public Socials Warning]:', socialsRes.error.message);
-        socials = [];
+        socials = (localData.social_links || []).filter(s => s.is_active);
       } else {
-        socials = socialsRes.data || [];
+        socials = Array.isArray(socialsRes.data) ? socialsRes.data : (localData.social_links || []).filter(s => s.is_active);
       }
 
       return res.json({

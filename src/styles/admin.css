@@ -174,7 +174,7 @@
   margin-bottom: 6px;
 }
 
-.sidebar-menu button {
+.sidebar-menu button, .sidebar-menu a {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -192,7 +192,8 @@
   text-align: left;
 }
 
-.sidebar-menu button:hover, .sidebar-menu button.active {
+.sidebar-menu button:hover, .sidebar-menu button.active,
+.sidebar-menu a:hover, .sidebar-menu a.active {
   background: rgba(56, 189, 248, 0.18);
   color: #ffffff;
   border-left: 3.5px solid #38bdf8;
